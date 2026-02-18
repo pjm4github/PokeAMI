@@ -83,6 +83,16 @@ class DeliveryManager:
         # promise_id -> per-meter timing metadata
         # { meter_mrid: { "collection_time": datetime, "will_fail": bool, "failure_reason": str | None } }
         self._timing: dict[str, dict[str, dict]] = {}
+        self._enabled: bool = True
+
+    def start(self) -> None:
+        self._enabled = True
+
+    def stop(self) -> None:
+        self._enabled = False
+
+    def is_enabled(self) -> bool:
+        return self._enabled
 
     def create_promise(
         self,
@@ -98,6 +108,24 @@ class DeliveryManager:
             get_readings_fn: Callable(meter_mrid, start, end, reading_type_mrid, validated_only) -> list[MeterReading]
         """
         now = datetime.now(timezone.utc)
+
+        if not self._enabled:
+            promise_id = f"dp-{generate_mrid()}"
+            promise = DeliveryPromise(
+                promise_id=promise_id,
+                status=DeliveryPromiseStatus.FAILED,
+                created_at=now,
+                estimated_delivery=now,
+                request=request,
+                meters_total=len(request.meter_mrids),
+                meters_collected=0,
+                meters_failed=len(request.meter_mrids),
+                meter_results=[],
+                failure_summary="Delivery manager is disabled",
+            )
+            self._promises[promise_id] = promise
+            self._timing[promise_id] = {}
+            return promise
         promise_id = f"dp-{generate_mrid()}"
 
         timing: dict[str, dict] = {}

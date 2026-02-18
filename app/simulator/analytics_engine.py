@@ -40,6 +40,16 @@ class AnalyticsEngine:
 
     def __init__(self, headend: Headend):
         self._headend = headend
+        self._enabled: bool = True
+
+    def start(self) -> None:
+        self._enabled = True
+
+    def stop(self) -> None:
+        self._enabled = False
+
+    def is_enabled(self) -> bool:
+        return self._enabled
 
     def get_demand_summary(
         self,
@@ -57,6 +67,8 @@ class AnalyticsEngine:
         Returns:
             List of DemandSummary objects.
         """
+        if not self._enabled:
+            return []
         meters = self._headend.get_meters()
         if meter_mrid:
             meter = meters.get(meter_mrid)
@@ -129,6 +141,8 @@ class AnalyticsEngine:
         References:
             - ANSI C84.1 Range A: ±5% of nominal voltage
         """
+        if not self._enabled:
+            return []
         meters = self._headend.get_meters()
         if meter_mrid:
             meter = meters.get(meter_mrid)
@@ -205,6 +219,8 @@ class AnalyticsEngine:
         References:
             - Landis+Gyr Gridstream Analytics revenue protection capabilities
         """
+        if not self._enabled:
+            return []
         alerts: list[RevenueProtectionAlert] = []
         meters = self._headend.get_meters()
         time_period = DateTimeInterval(start=start, end=end)

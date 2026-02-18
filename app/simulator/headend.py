@@ -37,6 +37,16 @@ class Headend:
         self._data_generator = data_generator
         # Raw readings: meter_mrid -> list[MeterReading]
         self._readings: dict[str, list[MeterReading]] = {}
+        self._enabled: bool = True
+
+    def start(self) -> None:
+        self._enabled = True
+
+    def stop(self) -> None:
+        self._enabled = False
+
+    def is_enabled(self) -> bool:
+        return self._enabled
 
     @property
     def meter_park(self) -> MeterPark:
@@ -59,6 +69,8 @@ class Headend:
 
     def get_meters(self) -> dict[str, Meter]:
         """Return all meters in the fleet."""
+        if not self._enabled:
+            return {}
         return self._meter_park.meters
 
     def get_meter(self, mrid: str) -> Meter | None:
@@ -95,6 +107,8 @@ class Headend:
         Returns:
             Filtered list of MeterReading objects (un-validated).
         """
+        if not self._enabled:
+            return []
         readings = self._readings.get(meter_mrid, [])
 
         if reading_type_mrid:
@@ -127,6 +141,8 @@ class Headend:
 
     def get_all_readings_for_meter(self, meter_mrid: str) -> list[MeterReading]:
         """Get all raw readings for a meter (no filtering)."""
+        if not self._enabled:
+            return []
         return self._readings.get(meter_mrid, [])
 
     def get_reading_types(self) -> dict[str, ReadingType]:

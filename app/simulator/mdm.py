@@ -40,6 +40,16 @@ class MDM:
 
     def __init__(self, headend: Headend):
         self._headend = headend
+        self._enabled: bool = True
+
+    def start(self) -> None:
+        self._enabled = True
+
+    def stop(self) -> None:
+        self._enabled = False
+
+    def is_enabled(self) -> bool:
+        return self._enabled
 
     def get_validated_readings(
         self,
@@ -61,6 +71,8 @@ class MDM:
         Returns:
             List of validated MeterReading objects.
         """
+        if not self._enabled:
+            return []
         raw_readings = self._headend.get_meter_readings(
             meter_mrid, start, end, reading_type_mrid
         )

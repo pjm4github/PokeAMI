@@ -118,6 +118,16 @@ class DataGenerator:
 
     def __init__(self, rng: random.Random | None = None):
         self._rng = rng or random.Random()
+        self._enabled: bool = True
+
+    def start(self) -> None:
+        self._enabled = True
+
+    def stop(self) -> None:
+        self._enabled = False
+
+    def is_enabled(self) -> bool:
+        return self._enabled
 
     def get_reading_types(self) -> dict[str, ReadingType]:
         """Return the catalog of available reading types."""
@@ -148,6 +158,8 @@ class DataGenerator:
         Returns:
             List of MeterReading objects, one per reading type.
         """
+        if not self._enabled:
+            return []
         now = datetime.now(timezone.utc).replace(second=0, microsecond=0)
         # Align to interval boundary
         minute_aligned = (now.minute // interval_minutes) * interval_minutes

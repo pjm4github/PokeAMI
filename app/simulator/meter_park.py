@@ -111,7 +111,17 @@ class MeterPark:
         self._rng = rng or random.Random()
         self._meters: dict[str, Meter] = {}
         self._usage_points: dict[str, UsagePoint] = {}
+        self._enabled: bool = True
         self._generate_fleet(meter_count)
+
+    def start(self) -> None:
+        self._enabled = True
+
+    def stop(self) -> None:
+        self._enabled = False
+
+    def is_enabled(self) -> bool:
+        return self._enabled
 
     def _generate_fleet(self, count: int) -> None:
         """Generate the meter fleet with realistic distribution."""
@@ -211,11 +221,15 @@ class MeterPark:
     @property
     def meters(self) -> dict[str, Meter]:
         """All meters keyed by mRID."""
+        if not self._enabled:
+            return {}
         return self._meters
 
     @property
     def usage_points(self) -> dict[str, UsagePoint]:
         """All usage points keyed by mRID."""
+        if not self._enabled:
+            return {}
         return self._usage_points
 
     def get_meter(self, mrid: str) -> Meter | None:

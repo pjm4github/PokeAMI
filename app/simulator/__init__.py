@@ -18,6 +18,7 @@ from app.models.delivery_promise import DeliveryPromise, DeliveryPromiseRequest
 from app.simulator.analytics_engine import AnalyticsEngine
 from app.simulator.data_generator import DataGenerator
 from app.simulator.delivery_manager import DeliveryManager
+from app.simulator.event_log import EventLog
 from app.simulator.headend import Headend
 from app.simulator.mdm import MDM
 from app.simulator.meter_park import MeterPark
@@ -60,6 +61,7 @@ class SimulatorEngine:
         self._mdm = MDM(self._headend)
         self._analytics = AnalyticsEngine(self._headend)
         self._delivery_manager = DeliveryManager(rng)
+        self._event_log = EventLog(maxlen=200)
 
     def initialize(self) -> None:
         """Generate all simulated data.
@@ -69,6 +71,7 @@ class SimulatorEngine:
         2. Headend generates raw readings via DataGenerator
         """
         self._headend.initialize(self._data_days, self._interval_minutes)
+        self._event_log.append("simulator", "SimulatorEngine initialized")
 
     # --- Meter access ---
 
@@ -179,3 +182,7 @@ class SimulatorEngine:
     @property
     def analytics(self) -> AnalyticsEngine:
         return self._analytics
+
+    @property
+    def event_log(self) -> EventLog:
+        return self._event_log

@@ -14,7 +14,7 @@ from fastapi import FastAPI
 from app.config import get_settings
 
 logger = logging.getLogger("uvicorn.error")
-from app.routers import analytics, delivery_promises, health, meters, reading_types, readings, usage_points
+from app.routers import analytics, dashboard, delivery_promises, health, meters, reading_types, readings, simulator, usage_points
 from app.simulator import SimulatorEngine
 
 
@@ -46,6 +46,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     logger.info("  ReDoc:        %s/redoc", base)
     logger.info("  OpenAPI JSON: %s/openapi.json", base)
     logger.info("  Health check: %s/api/v1/health", base)
+    logger.info("  Dashboard:    %s/dashboard", base)
     logger.info("=" * 60)
     logger.info("")
 
@@ -78,6 +79,8 @@ def create_app() -> FastAPI:
     app.include_router(reading_types.router, prefix=prefix)
     app.include_router(analytics.router, prefix=prefix)
     app.include_router(delivery_promises.router, prefix=prefix)
+    app.include_router(simulator.router, prefix=prefix)
+    app.include_router(dashboard.router)  # No prefix — serves at /dashboard
 
     return app
 
