@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     interval_minutes: int = 15
     host: str = "0.0.0.0"
     port: int = 8000
+    dashboard_port: int = 8001
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 

@@ -10,11 +10,12 @@ from contextlib import asynccontextmanager
 from collections.abc import AsyncGenerator
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
 
 logger = logging.getLogger("uvicorn.error")
-from app.routers import analytics, dashboard, delivery_promises, health, meters, reading_types, readings, simulator, usage_points
+from app.routers import analytics, delivery_promises, health, meters, reading_types, readings, simulator, usage_points
 from app.simulator import SimulatorEngine
 
 
@@ -46,7 +47,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     logger.info("  ReDoc:        %s/redoc", base)
     logger.info("  OpenAPI JSON: %s/openapi.json", base)
     logger.info("  Health check: %s/api/v1/health", base)
-    logger.info("  Dashboard:    %s/dashboard", base)
+    dash_host = "localhost" if host == "0.0.0.0" else host
+    logger.info("  Dashboard:    http://%s:%d/dashboard", dash_host, settings.dashboard_port)
     logger.info("=" * 60)
     logger.info("")
 
@@ -80,7 +82,16 @@ def create_app() -> FastAPI:
     app.include_router(analytics.router, prefix=prefix)
     app.include_router(delivery_promises.router, prefix=prefix)
     app.include_router(simulator.router, prefix=prefix)
-    app.include_router(dashboard.router)  # No prefix — serves at /dashboard
+
+    # CORS — allow dashboard (separate port) to call the API
+    settings = get_settings()
+    dashboard_origin = f"http://localhost:{settings.dashboard_port}"
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=[dashboard_origin, f"http://127.0.0.1:{settings.dashboard_port}"],
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
     return app
 

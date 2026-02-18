@@ -3,7 +3,7 @@
 Single HTML page with inline CSS/JS, no external dependencies.
 """
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 
 router = APIRouter(tags=["Dashboard"])
@@ -126,6 +126,100 @@ DASHBOARD_HTML = """\
   .log-entry.warn .comp { color: var(--amber); }
   .log-entry.error .comp { color: var(--red); }
   .log-entry .msg { flex: 1; }
+
+  /* Results overlay */
+  .results-overlay {
+    position: absolute; inset: 0; z-index: 10;
+    background: rgba(26,29,35,0.97);
+    display: flex; flex-direction: column;
+    overflow: hidden; border-radius: 8px;
+  }
+  .results-overlay.hidden { display: none; }
+  .results-header {
+    display: flex; align-items: center; padding: 14px 18px 10px;
+    border-bottom: 1px solid var(--border); flex-shrink: 0;
+  }
+  .results-header h3 { flex: 1; font-size: 1rem; font-weight: 600; }
+  .results-close {
+    background: none; border: 1px solid var(--border); color: var(--muted);
+    border-radius: 4px; padding: 4px 10px; cursor: pointer; font-size: 0.8rem;
+  }
+  .results-close:hover { border-color: var(--red); color: var(--red); }
+  .results-body { flex: 1; overflow-y: auto; padding: 14px 18px; }
+
+  /* Tabs */
+  .tab-bar {
+    display: flex; gap: 4px; padding: 0 0 12px; flex-wrap: wrap; flex-shrink: 0;
+  }
+  .tab {
+    padding: 5px 12px; font-size: 0.78rem; border: 1px solid var(--border);
+    border-radius: 4px; cursor: pointer; background: var(--bg); color: var(--muted);
+  }
+  .tab:hover { border-color: var(--cyan); color: var(--text); }
+  .tab.active { border-color: var(--cyan); color: var(--cyan); background: var(--panel); }
+
+  /* Results table */
+  .results-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+  .results-table th {
+    text-align: left; padding: 6px 10px; color: var(--muted); font-weight: 500;
+    border-bottom: 1px solid var(--border); font-size: 0.75rem;
+    text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  .results-table td {
+    padding: 5px 10px; border-bottom: 1px solid rgba(51,56,64,0.5);
+  }
+  .results-table tr:hover td { background: rgba(66,165,245,0.05); }
+  .results-summary {
+    display: flex; gap: 18px; padding: 10px 0 14px; font-size: 0.8rem; color: var(--muted);
+  }
+  .results-summary strong { color: var(--text); }
+
+  /* Quality badges */
+  .quality-badge {
+    font-size: 0.7rem; padding: 2px 6px; border-radius: 3px;
+    font-weight: 500; display: inline-block;
+  }
+  .quality-badge.valid { background: rgba(76,175,80,0.2); color: var(--green); }
+  .quality-badge.estimated { background: rgba(255,152,0,0.2); color: var(--amber); }
+  .quality-badge.suspect { background: rgba(244,67,54,0.2); color: var(--red); }
+  .quality-badge.raw { background: rgba(136,136,136,0.2); color: var(--muted); }
+
+  /* Promise tracker */
+  .promise-tracker {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 8px; padding: 16px; margin-bottom: 16px;
+  }
+  .promise-row { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+  .promise-row .label { color: var(--muted); font-size: 0.78rem; min-width: 100px; }
+  .promise-row .value { font-size: 0.85rem; }
+  .promise-status {
+    font-size: 0.75rem; padding: 3px 10px; border-radius: 10px;
+    font-weight: 600; display: inline-block; text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  .promise-status.pending { background: rgba(66,165,245,0.2); color: var(--blue); }
+  .promise-status.inprogress { background: rgba(255,152,0,0.2); color: var(--amber); }
+  .promise-status.completed { background: rgba(76,175,80,0.2); color: var(--green); }
+  .promise-status.partial { background: rgba(255,152,0,0.2); color: var(--amber); }
+  .promise-status.failed { background: rgba(244,67,54,0.2); color: var(--red); }
+  .progress-bar {
+    flex: 1; height: 8px; background: var(--bg); border-radius: 4px; overflow: hidden;
+  }
+  .progress-bar-fill {
+    height: 100%; background: var(--green); border-radius: 4px;
+    transition: width 0.4s ease;
+  }
+  .meter-result-row {
+    display: flex; align-items: center; gap: 10px; padding: 6px 0;
+    border-bottom: 1px solid rgba(51,56,64,0.4); font-size: 0.8rem;
+  }
+  .meter-result-row .mrid { color: var(--muted); font-family: 'Cascadia Code', monospace; font-size: 0.75rem; }
+  .meter-status-icon { width: 18px; text-align: center; }
+  .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--border); border-top-color: var(--cyan); border-radius: 50%; animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .promise-readings-label { font-size: 0.85rem; color: var(--muted); margin: 16px 0 10px; font-weight: 500; }
+
+  /* Diagram area needs relative for overlay positioning */
+  .diagram-area { position: relative; }
 </style>
 </head>
 <body>
@@ -137,6 +231,13 @@ DASHBOARD_HTML = """\
 
 <!-- Diagram -->
 <div class="diagram-area">
+<div id="resultsOverlay" class="results-overlay hidden">
+  <div class="results-header">
+    <h3 id="resultsTitle">Results</h3>
+    <button class="results-close" onclick="hideResults()">Close</button>
+  </div>
+  <div class="results-body" id="resultsBody"></div>
+</div>
 <svg class="pipeline" viewBox="0 0 1100 320" xmlns="http://www.w3.org/2000/svg">
   <defs>
     <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
@@ -263,9 +364,11 @@ DASHBOARD_HTML = """\
 </div>
 
 <script>
-const API = '/api/v1';
+const API = '{{API_BASE}}';
 let pollTimer = null;
 let allMeters = [];
+let readingTypesCache = {};
+let promisePollTimer = null;
 
 function apiKey() { return document.getElementById('apiKey').value; }
 
@@ -274,7 +377,6 @@ async function pollStatus() {
     const r = await fetch(API + '/simulator/status');
     if (!r.ok) throw new Error(r.status);
     const data = await r.json();
-    // Update dots
     for (const [name, enabled] of Object.entries(data.components)) {
       const dot = document.getElementById('dot-' + name);
       if (dot) {
@@ -282,12 +384,10 @@ async function pollStatus() {
         dot.classList.toggle('off', !enabled);
       }
     }
-    // Overall status
     const allOn = Object.values(data.components).every(v => v);
     const badge = document.getElementById('overallStatus');
     badge.textContent = allOn ? 'All Systems Online' : 'Degraded';
     badge.className = 'status-badge' + (allOn ? '' : ' error');
-    // Events
     renderEvents(data.events);
   } catch (e) {
     document.getElementById('overallStatus').textContent = 'Connection Error';
@@ -341,6 +441,17 @@ async function loadMeters() {
   } catch(e) { console.error('loadMeters', e); }
 }
 
+async function loadReadingTypes() {
+  try {
+    const r = await fetch(API + '/reading-types', {
+      headers: {'X-API-Key': apiKey()}
+    });
+    if (!r.ok) return;
+    const data = await r.json();
+    (data.items || []).forEach(rt => { readingTypesCache[rt.mrid] = rt; });
+  } catch(e) { console.error('loadReadingTypes', e); }
+}
+
 document.getElementById('meterSelect').addEventListener('change', function() {
   selectMeter(this.value);
 });
@@ -370,40 +481,233 @@ function selectMeter(mrid) {
 
 function row(k, v) { return `<div class="row"><span class="k">${k}</span><span>${v}</span></div>`; }
 
+/* ---------- Results overlay helpers ---------- */
+
+function showResults(title, html) {
+  document.getElementById('resultsTitle').textContent = title;
+  document.getElementById('resultsBody').innerHTML = html;
+  document.getElementById('resultsOverlay').classList.remove('hidden');
+}
+
+function hideResults() {
+  document.getElementById('resultsOverlay').classList.add('hidden');
+  document.getElementById('resultsBody').innerHTML = '';
+  if (promisePollTimer) { clearTimeout(promisePollTimer); promisePollTimer = null; }
+}
+
+function readingTypeName(mrid) {
+  const rt = readingTypesCache[mrid];
+  if (!rt) return mrid.substring(0, 8) + '...';
+  return rt.name + ' (' + rt.unit + ')';
+}
+
+function qualityBadge(qualityList) {
+  if (!qualityList || qualityList.length === 0) return '<span class="quality-badge raw">raw</span>';
+  const q = qualityList[0].quality_type;
+  if (q === 'validated') return '<span class="quality-badge valid">validated</span>';
+  if (q === 'estimated') return '<span class="quality-badge estimated">estimated</span>';
+  if (q === 'suspect' || q === 'missing') return '<span class="quality-badge suspect">' + q + '</span>';
+  return '<span class="quality-badge raw">' + q + '</span>';
+}
+
+function formatTs(ts) {
+  return ts.replace('T', ' ').substring(0, 19);
+}
+
+function renderReadingsTable(meterReadings) {
+  if (!meterReadings || meterReadings.length === 0) {
+    return '<div style="color:var(--muted);padding:20px;text-align:center">No readings available</div>';
+  }
+
+  // Build tabs — one per reading type
+  const tabs = meterReadings.map((mr, i) => {
+    const name = readingTypeName(mr.reading_type_mrid);
+    const cls = i === 0 ? 'tab active' : 'tab';
+    return `<button class="${cls}" data-tab="${i}" onclick="switchTab(this)">${name}</button>`;
+  }).join('');
+
+  // Build tab content panels
+  const panels = meterReadings.map((mr, i) => {
+    const allReadings = mr.interval_blocks.flatMap(b => b.interval_readings);
+    const rt = readingTypesCache[mr.reading_type_mrid];
+    const unit = rt ? rt.unit : '';
+    const display = i === 0 ? '' : 'display:none;';
+
+    // Summary
+    const total = allReadings.length;
+    const validated = mr.is_validated ? 'Yes' : 'No';
+    const period = mr.time_period
+      ? formatTs(mr.time_period.start) + ' to ' + formatTs(mr.time_period.end)
+      : '-';
+    const summary = `<div class="results-summary">
+      <span>Readings: <strong>${total}</strong></span>
+      <span>Period: <strong>${period}</strong></span>
+      <span>VEE Validated: <strong>${validated}</strong></span>
+    </div>`;
+
+    // Table rows (show last 20)
+    const displayed = allReadings.slice(-20);
+    const rows = displayed.map(r =>
+      `<tr>
+        <td>${formatTs(r.timestamp)}</td>
+        <td style="text-align:right;font-family:'Cascadia Code',monospace">${r.value.toFixed(2)}</td>
+        <td>${unit}</td>
+        <td>${qualityBadge(r.quality)}</td>
+      </tr>`
+    ).join('');
+
+    return `<div class="tab-panel" data-panel="${i}" style="${display}">
+      ${summary}
+      <table class="results-table">
+        <thead><tr><th>Timestamp</th><th style="text-align:right">Value</th><th>Unit</th><th>Quality</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+  }).join('');
+
+  return `<div class="tab-bar">${tabs}</div>${panels}`;
+}
+
+function switchTab(btn) {
+  const idx = btn.dataset.tab;
+  const overlay = document.getElementById('resultsBody');
+  overlay.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  overlay.querySelectorAll('.tab-panel').forEach(p => {
+    p.style.display = p.dataset.panel === idx ? '' : 'none';
+  });
+}
+
+function renderPromiseTracker(promise) {
+  const pct = promise.meters_total > 0
+    ? Math.round((promise.meters_collected / promise.meters_total) * 100) : 0;
+  const statusCls = promise.status.toLowerCase().replace('_', '');
+
+  const meterRows = (promise.meter_results || []).map(mr => {
+    let icon;
+    if (mr.status === 'collected') icon = '<span style="color:var(--green)">&#10003;</span>';
+    else if (mr.status === 'failed') icon = '<span style="color:var(--red)">&#10007;</span>';
+    else icon = '<span class="spinner"></span>';
+
+    const statusText = mr.status;
+    const failReason = mr.failure_reason ? ` — ${mr.failure_reason}` : '';
+
+    return `<div class="meter-result-row">
+      <span class="meter-status-icon">${icon}</span>
+      <span class="mrid">${mr.meter_mrid.substring(0,12)}...</span>
+      <span>${statusText}${failReason}</span>
+    </div>`;
+  }).join('');
+
+  const eta = formatTs(promise.estimated_delivery);
+
+  return `<div class="promise-tracker">
+    <div class="promise-row">
+      <span class="label">Promise ID</span>
+      <span class="value" style="font-family:'Cascadia Code',monospace;font-size:0.78rem">${promise.promise_id.substring(0,12)}...</span>
+    </div>
+    <div class="promise-row">
+      <span class="label">Status</span>
+      <span class="promise-status ${statusCls}">${promise.status}</span>
+    </div>
+    <div class="promise-row">
+      <span class="label">ETA</span>
+      <span class="value">${eta}</span>
+    </div>
+    <div class="promise-row">
+      <span class="label">Progress</span>
+      <span class="value" style="margin-right:8px">${promise.meters_collected}/${promise.meters_total}</span>
+      <div class="progress-bar"><div class="progress-bar-fill" style="width:${pct}%"></div></div>
+    </div>
+    ${meterRows}
+  </div>`;
+}
+
+/* ---------- Get Readings (rewritten) ---------- */
+
 async function getReadings() {
   const mrid = document.getElementById('meterSelect').value;
   if (!mrid) { alert('Select a meter first'); return; }
   try {
-    const r = await fetch(API + '/meters/' + mrid + '/readings?limit=5', {
+    showResults('Loading readings...', '<div style="color:var(--muted);padding:20px;text-align:center"><span class="spinner"></span> Fetching...</div>');
+    const r = await fetch(API + '/meters/' + mrid + '/readings?limit=20', {
       headers: {'X-API-Key': apiKey()}
     });
-    if (!r.ok) { alert('Error ' + r.status); return; }
+    if (!r.ok) { hideResults(); alert('Error ' + r.status); return; }
     const data = await r.json();
-    const count = (data.items || []).reduce((s, mr) =>
-      s + mr.interval_blocks.reduce((s2, b) => s2 + b.interval_readings.length, 0), 0);
-    // Log an event client-side (will show on next poll)
-    await fetch(API + '/simulator/status');  // trigger refresh
-    alert('Retrieved ' + count + ' interval readings for ' + (data.items||[]).length + ' reading types');
-  } catch(e) { alert('Error: ' + e.message); }
+    const items = data.items || [];
+
+    // Resolve reading type names if cache is empty
+    if (Object.keys(readingTypesCache).length === 0) await loadReadingTypes();
+
+    const meter = allMeters.find(x => x.mrid === mrid);
+    const title = 'Readings — ' + (meter ? meter.serial_number : mrid.substring(0, 8));
+    const html = renderReadingsTable(items);
+    showResults(title, html);
+  } catch(e) { hideResults(); alert('Error: ' + e.message); }
 }
+
+/* ---------- On-Demand Read (rewritten) ---------- */
 
 async function onDemandRead() {
   const mrid = document.getElementById('meterSelect').value;
   if (!mrid) { alert('Select a meter first'); return; }
   try {
+    showResults('Creating delivery promise...', '<div style="color:var(--muted);padding:20px;text-align:center"><span class="spinner"></span> Submitting request...</div>');
+
+    // Resolve reading type names if cache is empty
+    if (Object.keys(readingTypesCache).length === 0) await loadReadingTypes();
+
     const r = await fetch(API + '/delivery-promises', {
       method: 'POST',
       headers: {'X-API-Key': apiKey(), 'Content-Type': 'application/json'},
       body: JSON.stringify({meter_mrids: [mrid]})
     });
-    if (!r.ok) { alert('Error ' + r.status); return; }
-    const data = await r.json();
-    alert('Delivery promise created: ' + data.promise_id + '\\nStatus: ' + data.status);
-  } catch(e) { alert('Error: ' + e.message); }
+    if (!r.ok) { hideResults(); alert('Error ' + r.status); return; }
+    const promise = await r.json();
+
+    const meter = allMeters.find(x => x.mrid === mrid);
+    const title = 'On-Demand Read — ' + (meter ? meter.serial_number : mrid.substring(0, 8));
+    showResults(title, renderPromiseTracker(promise));
+    pollPromise(promise.promise_id, title);
+  } catch(e) { hideResults(); alert('Error: ' + e.message); }
+}
+
+function pollPromise(promiseId, title) {
+  promisePollTimer = setTimeout(async () => {
+    try {
+      const r = await fetch(API + '/delivery-promises/' + promiseId, {
+        headers: {'X-API-Key': apiKey()}
+      });
+      if (!r.ok) return;
+      const promise = await r.json();
+      const terminal = ['completed', 'partial', 'failed'];
+      const isDone = terminal.includes(promise.status);
+
+      let html = renderPromiseTracker(promise);
+      if (isDone) {
+        // Collect all readings from meter results
+        const allReadings = (promise.meter_results || [])
+          .filter(mr => mr.readings && mr.readings.length > 0)
+          .flatMap(mr => mr.readings);
+        if (allReadings.length > 0) {
+          html += '<div class="promise-readings-label">Collected Readings</div>';
+          html += renderReadingsTable(allReadings);
+        }
+        if (promise.failure_summary) {
+          html += '<div style="color:var(--red);font-size:0.8rem;margin-top:10px">Failures: ' + promise.failure_summary + '</div>';
+        }
+      }
+      showResults(title, html);
+
+      if (!isDone) pollPromise(promiseId, title);
+    } catch(e) { console.error('pollPromise', e); }
+  }, 2000);
 }
 
 // Init
 loadMeters();
+loadReadingTypes();
 pollStatus();
 pollTimer = setInterval(pollStatus, 3000);
 </script>
@@ -413,6 +717,8 @@ pollTimer = setInterval(pollStatus, 3000);
 
 
 @router.get("/dashboard", response_class=HTMLResponse)
-async def dashboard() -> HTMLResponse:
+async def dashboard(request: Request) -> HTMLResponse:
     """Serve the PokeAMI Control Panel dashboard."""
-    return HTMLResponse(content=DASHBOARD_HTML)
+    api_base = getattr(request.app.state, "api_base", "/api/v1")
+    html = DASHBOARD_HTML.replace("{{API_BASE}}", api_base)
+    return HTMLResponse(content=html)
