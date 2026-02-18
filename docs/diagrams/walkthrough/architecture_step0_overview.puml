@@ -1,7 +1,7 @@
 @startuml Architecture - Step 0: Full Overview
 !theme plain
 
-title <b>Simulated AMI Architecture</b>\n<i>Full System Overview</i>
+title <b>PokeAMI — Simulated AMI Architecture</b>\n<i>Full System Overview</i>
 
 skinparam backgroundColor #FEFEFE
 skinparam defaultFontSize 13
@@ -52,11 +52,17 @@ node "Gridstream Analytics" as GA {
     [Revenue Protection] as RP
 }
 
+node "Delivery Manager\n(On-Demand Reads)" as DM {
+    [Promise Tracking] as PT
+    [Comm Latency Simulation] as CLS
+}
+
 node "REST API\n(FastAPI + OpenAPI 3.1)" as API {
     [/meters] as EM
     [/readings] as ER
     [/usage-points] as EU
     [/analytics] as EA
+    [/delivery-promises] as EDP
 }
 
 actor "Client Applications" as Client
@@ -78,6 +84,10 @@ HES --> GA : raw data
 HES --> API
 MDM --> API
 GA --> API
+DM --> API
+
+HES --> DM : on-demand collection
+MDM --> DM : validated reads
 
 Client --> API : HTTP + X-API-Key
 

@@ -1,0 +1,59 @@
+@startuml Sequence - Delivery Promise
+!theme plain
+
+title PokeAMI — On-Demand Read (Delivery Promise)
+
+actor Client
+participant "API Router\n(/delivery-promises)" as Router
+participant "Auth\n(X-API-Key)" as Auth
+participant "SimulatorEngine" as Sim
+participant "DeliveryManager" as DM
+participant "Headend\n(HES)" as HES
+participant "MDM\n(VEE Pipeline)" as MDM
+
+== Create Promise ==
+
+Client -> Router : POST /api/v1/delivery-promises\n{meter_mrids, start, end,\n reading_type_mrid, validated_only}
+Router -> Auth : validate X-API-Key
+Auth --> Router : OK
+
+Router -> Sim : create_delivery_promise(request)
+Sim -> DM : create_promise(\n  request, meters,\n  get_readings_fn)
+DM -> DM : assign per-meter:\n  simulated latency\n  (3-25s by comm type)\n  failure probability
+DM -> DM : estimated_delivery =\n  max(latency) + 5s buffer
+DM --> Sim : DeliveryPromise\n  (status: pending)
+Sim --> Router : DeliveryPromise
+Router --> Client : 201 Created
+
+== Poll Promise ==
+
+Client -> Router : GET /api/v1/delivery-promises/{id}
+Router -> Auth : validate X-API-Key
+Auth --> Router : OK
+
+Router -> Sim : get_delivery_promise(id)
+Sim -> DM : get_promise(id)
+
+DM -> DM : check wall-clock time\n  vs per-meter collection times
+
+loop for each resolved meter
+    alt meter will_fail = false
+        DM -> HES : get_meter_readings(\n  meter_mrid, start, end)
+        HES --> DM : raw MeterReading[]
+        opt validated_only = true
+            DM -> MDM : get_validated_readings(...)
+            MDM --> DM : validated MeterReading[]
+        end
+        DM -> DM : status: collected
+    else meter will_fail = true
+        DM -> DM : status: failed\n  (timeout / path unavailable /\n  CRC errors / SIM failure)
+    end
+end
+
+DM -> DM : derive promise status:\n  all collected → completed\n  all failed → failed\n  mixed → partial\n  some pending → inProgress
+
+DM --> Sim : DeliveryPromise\n  (with meter_results)
+Sim --> Router : DeliveryPromise
+Router --> Client : 200 OK
+
+@enduml

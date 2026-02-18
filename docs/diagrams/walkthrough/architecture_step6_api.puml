@@ -63,6 +63,7 @@ node "REST API\n(FastAPI + OpenAPI 3.1)" as API #FFEBEE;line:C62828;text:B71C1C 
     [<b>/readings</b>\nRaw & validated intervals\n/interval-blocks] as ER #FFCDD2;line:E53935
     [<b>/usage-points</b>\nService locations\nCustomer mapping] as EU #FFCDD2;line:E53935
     [<b>/analytics</b>\nDemand · Voltage\nRevenue protection] as EA #FFCDD2;line:E53935
+    [<b>/delivery-promises</b>\nAsync on-demand reads\nPoll status · Per-meter results] as EDP #FFCDD2;line:E53935
 }
 
 actor "Client Applications" as Client #FFF3E0;line:FF9800;text:E65100

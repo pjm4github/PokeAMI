@@ -1,7 +1,7 @@
 @startuml Component - Step 1: Simulator Layer
 !theme plain
 
-title <b>Software Architecture: Simulator Layer</b>\n<i>MeterPark → DataGenerator → Headend → MDM → Analytics</i>
+title <b>PokeAMI — Simulator Layer</b>\n<i>MeterPark → DataGenerator → Headend → MDM → Analytics → DeliveryManager</i>
 
 skinparam backgroundColor #FEFEFE
 skinparam defaultFontSize 13
@@ -15,6 +15,7 @@ package "API Layer" #F5F5F5;line:BDBDBD {
     [Meters Router] as MR #EEEEEE;line:BDBDBD;text:9E9E9E
     [Readings Router] as RR #EEEEEE;line:BDBDBD;text:9E9E9E
     [Analytics Router] as AR #EEEEEE;line:BDBDBD;text:9E9E9E
+    [Delivery Promises Router] as DPR #EEEEEE;line:BDBDBD;text:9E9E9E
 }
 
 package "Simulator Layer" #E3F2FD;line:1565C0 {
@@ -22,6 +23,7 @@ package "Simulator Layer" #E3F2FD;line:1565C0 {
     [<b>Headend (HES)</b>\nRaw data collection\n& meter inventory] as HES #FFF3E0;line:FB8C00
     [<b>MDM (VEE)</b>\nValidation\nEstimation\nEditing] as MDM #C8E6C9;line:43A047
     [<b>Analytics Engine</b>\nDemand · Voltage\nRevenue protection] as AE #D1C4E9;line:7E57C2
+    [<b>Delivery Manager</b>\nOn-demand reads\nComm latency simulation\nPromise lifecycle] as DM #FFE0B2;line:E65100
     [<b>Meter Park</b>\nFleet generation\n50 L+G meters\nUsagePoints] as MP #FFECB3;line:FFA000
     [<b>Data Generator</b>\nLoad curves\nSeasonal patterns\nQuality injection] as DG #FFECB3;line:FFA000
 }
@@ -32,15 +34,19 @@ API -[#BDBDBD]-> Engine
 MR -[#BDBDBD]-> Engine
 RR -[#BDBDBD]-> Engine
 AR -[#BDBDBD]-> Engine
+DPR -[#BDBDBD]-> Engine
 
 Engine -[#1E88E5,bold]-> HES : raw data
 Engine -[#1E88E5,bold]-> MDM : validated data
 Engine -[#1E88E5,bold]-> AE : analytics
+Engine -[#1E88E5,bold]-> DM : on-demand reads
 
 HES -[#FB8C00,bold]-> MP : meter inventory
 HES -[#FB8C00,bold]-> DG : data generation
 MDM -[#43A047,bold]-> HES : raw readings
 AE -[#7E57C2,bold]-> HES : raw readings
+DM -[#E65100,bold]-> HES : on-demand collection
+DM -[#E65100,bold]-> MDM : validated reads
 
 MP -[#FFA000,bold]-> DG : meter specs
 

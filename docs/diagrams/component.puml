@@ -1,7 +1,7 @@
 @startuml Component Diagram
 !theme plain
 
-title Meter API for Headend - Component Diagram
+title PokeAMI — Component Diagram
 
 package "API Layer" {
     [FastAPI Application] as API
@@ -11,6 +11,7 @@ package "API Layer" {
     [Usage Points Router] as UP
     [Reading Types Router] as RT
     [Analytics Router] as Analytics
+    [Delivery Promises Router] as DP
     [Auth Middleware] as Auth
 }
 
@@ -19,6 +20,7 @@ package "Simulator Layer" {
     [Headend (HES)] as HES
     [MDM (VEE)] as MDM
     [Analytics Engine] as AE
+    [Delivery Manager] as DM
     [Meter Park] as MP
     [Data Generator] as DG
 }
@@ -32,15 +34,19 @@ Readings --> Engine
 UP --> Engine
 RT --> Engine
 Analytics --> Engine
+DP --> Engine
 
 Engine --> HES : raw data
 Engine --> MDM : validated data
 Engine --> AE : analytics
+Engine --> DM : on-demand reads
 
 HES --> MP : meter inventory
 HES --> DG : data generation
 MDM --> HES : raw readings
 AE --> HES : raw readings
+DM --> HES : on-demand collection
+DM --> MDM : validated reads
 
 MP --> DG : meter specs
 

@@ -48,12 +48,13 @@ node "REST API\n(FastAPI + OpenAPI 3.1)" as API #FFEBEE;line:C62828;text:B71C1C 
     [/readings] as ER #FFCDD2;line:E53935
     [/usage-points] as EU #FFCDD2;line:E53935
     [/analytics] as EA #FFCDD2;line:E53935
+    [/delivery-promises] as EDP #FFCDD2;line:E53935
 }
 
 actor "<b>Billing System</b>\n(CIS)\nGET /readings\n?validated_only=true" as Billing #FFF3E0;line:E65100;text:BF360C
 actor "<b>Grid Operations</b>\n(OMS/ADMS)\nGET /analytics\n/voltage-summary" as Grid #FFF3E0;line:E65100;text:BF360C
 actor "<b>Customer Portal</b>\nGET /usage-points\nGET /readings" as Portal #FFF3E0;line:E65100;text:BF360C
-actor "<b>DERMS</b>\nGET /analytics\n/demand-summary" as DERMS #FFF3E0;line:E65100;text:BF360C
+actor "<b>DERMS / Field Ops</b>\nPOST /delivery-promises\nGET /analytics\n/demand-summary" as DERMS #FFF3E0;line:E65100;text:BF360C
 
 E350 -[#66BB6A]-> RF
 E360 -[#66BB6A]-> LTE

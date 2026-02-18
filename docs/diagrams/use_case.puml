@@ -1,15 +1,16 @@
 @startuml Use Case Diagram
 !theme plain
 
-title Meter API for Headend - Use Cases
+title PokeAMI — Use Cases
 
 left to right direction
 
 actor "Utility Analyst" as Analyst
 actor "Billing System" as Billing
 actor "Grid Operator" as Grid
+actor "DERMS /\nField Ops" as Field
 
-rectangle "Meter API for Headend" {
+rectangle "PokeAMI" {
     usecase "Retrieve Meter\nReadings" as UC1
     usecase "Query Usage\nPoints" as UC2
     usecase "View Demand\nAnalytics" as UC3
@@ -18,6 +19,8 @@ rectangle "Meter API for Headend" {
     usecase "List Available\nReading Types" as UC6
     usecase "Get Validated\n(VEE) Readings" as UC7
     usecase "Query Interval\nBlocks" as UC8
+    usecase "Request On-Demand\nReads" as UC9
+    usecase "Poll Delivery\nPromise Status" as UC10
 }
 
 Analyst --> UC1
@@ -36,7 +39,12 @@ Grid --> UC3
 Grid --> UC5
 Grid --> UC8
 
+Field --> UC9
+Field --> UC10
+Field --> UC3
+
 UC7 .> UC1 : <<extends>>
 UC8 .> UC1 : <<extends>>
+UC10 .> UC9 : <<extends>>
 
 @enduml

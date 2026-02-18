@@ -1,7 +1,7 @@
 @startuml Sequence - Get Meter Readings
 !theme plain
 
-title Get Meter Readings - Sequence Diagram
+title PokeAMI — Get Meter Readings
 
 actor Client
 participant "API Router\n(/meters/{id}/readings)" as Router

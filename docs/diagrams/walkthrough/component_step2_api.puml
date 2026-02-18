@@ -1,7 +1,7 @@
 @startuml Component - Step 2: API Layer
 !theme plain
 
-title <b>Software Architecture: API Layer</b>\n<i>FastAPI routers · Auth · OpenAPI 3.1</i>
+title <b>PokeAMI — API Layer</b>\n<i>FastAPI routers · Auth · OpenAPI 3.1</i>
 
 skinparam backgroundColor #FEFEFE
 skinparam defaultFontSize 13
@@ -19,6 +19,7 @@ package "API Layer" #FFEBEE;line:C62828 {
     [<b>/usage-points</b>\nService locations\nCustomer mapping] as UP #FFCDD2;line:E53935
     [<b>/reading-types</b>\nCIM 18-attribute\nReadingType catalog] as RT #FFCDD2;line:E53935
     [<b>/analytics</b>\nDemand summary\nVoltage summary\nRevenue alerts] as AR #FFCDD2;line:E53935
+    [<b>/delivery-promises</b>\nAsync on-demand reads\nPoll status · Per-meter results] as DPR #FFCDD2;line:E53935
 }
 
 package "Simulator Layer" #E3F2FD;line:64B5F6 {
@@ -26,6 +27,7 @@ package "Simulator Layer" #E3F2FD;line:64B5F6 {
     [Headend (HES)] as HES #BBDEFB;line:64B5F6
     [MDM (VEE)] as MDM #BBDEFB;line:64B5F6
     [Analytics Engine] as AE #BBDEFB;line:64B5F6
+    [Delivery Manager] as DM #BBDEFB;line:64B5F6
     [Meter Park] as MP #BBDEFB;line:64B5F6
     [Data Generator] as DG #BBDEFB;line:64B5F6
 }
@@ -39,14 +41,18 @@ RR -[#C62828]-> Engine
 UP -[#C62828]-> Engine
 RT -[#C62828]-> Engine
 AR -[#C62828]-> Engine
+DPR -[#C62828]-> Engine
 
 Engine -[#64B5F6]-> HES
 Engine -[#64B5F6]-> MDM
 Engine -[#64B5F6]-> AE
+Engine -[#64B5F6]-> DM
 HES -[#64B5F6]-> MP
 HES -[#64B5F6]-> DG
 MDM -[#64B5F6]-> HES
 AE -[#64B5F6]-> HES
+DM -[#64B5F6]-> HES
+DM -[#64B5F6]-> MDM
 MP -[#64B5F6]-> DG
 
 @enduml

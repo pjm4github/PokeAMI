@@ -1,7 +1,7 @@
 @startuml Architecture Diagram
 !theme plain
 
-title Simulated AMI Architecture
+title PokeAMI — Simulated AMI Architecture
 
 node "Smart Meters" {
     [E350 Residential] as E350
@@ -33,11 +33,17 @@ node "Gridstream Analytics" as GA {
     [Revenue Protection]
 }
 
+node "Delivery Manager\n(On-Demand Reads)" as DM {
+    [Promise Tracking]
+    [Comm Latency Simulation]
+}
+
 node "REST API\n(FastAPI + OpenAPI 3.1)" as API {
     [/meters]
     [/readings]
     [/usage-points]
     [/analytics]
+    [/delivery-promises]
 }
 
 actor "Client Applications" as Client
@@ -59,6 +65,10 @@ HES --> GA : raw data
 HES --> API
 MDM --> API
 GA --> API
+DM --> API
+
+HES --> DM : on-demand collection
+MDM --> DM : validated reads
 
 Client --> API : HTTP + X-API-Key
 

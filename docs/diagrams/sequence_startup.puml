@@ -1,7 +1,7 @@
 @startuml Sequence - Application Startup
 !theme plain
 
-title Application Startup - Sequence Diagram
+title PokeAMI — Application Startup
 
 participant "main.py\n(uvicorn)" as Main
 participant "FastAPI\nLifespan" as Lifespan
@@ -10,6 +10,7 @@ participant "MeterPark" as MP
 participant "DataGenerator" as DG
 participant "Headend\n(HES)" as HES
 participant "MDM" as MDM
+participant "DeliveryManager" as DM
 
 Main -> Lifespan : startup event
 Lifespan -> Engine : create SimulatorEngine(\n  meter_count=50,\n  data_days=30,\n  interval_minutes=15)
@@ -22,6 +23,7 @@ MP --> Engine : meters + usage_points
 Engine -> DG : create DataGenerator()
 Engine -> HES : create Headend(\n  meter_park, data_gen)
 Engine -> MDM : create MDM(headend)
+Engine -> DM : create DeliveryManager(\n  meter_park, headend, mdm)
 
 Lifespan -> Engine : initialize()
 Engine -> HES : initialize(\n  data_days=30,\n  interval_minutes=15)

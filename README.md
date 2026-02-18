@@ -1,54 +1,55 @@
-# Meter API for Headend
+# PokeAMI
 
-A CIM-compatible OpenAPI interface to simulated Landis+Gyr Advanced Metering Infrastructure (AMI). This project provides a practical, runnable reference implementation showing how to retrieve meter readings from AMI infrastructure through a standards-based REST API.
+A CIM-compatible OpenAPI interface to simulated Landis+Gyr Advanced Metering Infrastructure (AMI). PokeAMI provides a practical, runnable reference implementation showing how to retrieve meter readings from AMI infrastructure through a standards-based REST API.
+
+"Poke" the AMI — query meters, collect readings, run analytics, and simulate asynchronous on-demand reads, all backed by realistic generated time-series data.
 
 ## Architecture
 
 The implementation simulates three Landis+Gyr components backed by realistic generated data, exposed through a FastAPI OpenAPI 3.1 interface using IEC 61968-9 CIM data models.
 
+Full architecture and component diagrams are available as PlantUML sources in [`docs/diagrams/`](docs/diagrams/):
+
+| Diagram | Source | Description |
+|---------|--------|-------------|
+| System Architecture | [`architecture.puml`](docs/diagrams/architecture.puml) | End-to-end AMI topology: meters, comms, HES, MDM, Analytics, Delivery Manager, API |
+| Component Diagram | [`component.puml`](docs/diagrams/component.puml) | API layer and simulator layer with all internal dependencies |
+| Get Readings Flow | [`sequence_get_readings.puml`](docs/diagrams/sequence_get_readings.puml) | Sequence diagram for `GET /meters/{id}/readings` with VEE pipeline |
+| Delivery Promise Flow | [`sequence_delivery_promise.puml`](docs/diagrams/sequence_delivery_promise.puml) | Sequence diagram for async on-demand read lifecycle |
+| Application Startup | [`sequence_startup.puml`](docs/diagrams/sequence_startup.puml) | Startup sequence: fleet generation, data generation, component wiring |
+| Use Cases | [`use_case.puml`](docs/diagrams/use_case.puml) | Actor/use-case diagram for Billing, Grid Ops, Analysts, DERMS/Field Ops |
+
+A progressive walkthrough series (8 architecture steps + 2 component steps) is in [`docs/diagrams/walkthrough/`](docs/diagrams/walkthrough/) for training presentations.
+
+To render diagrams locally:
+
+```bash
+python demo/render_diagrams.py          # PNG output
+python demo/render_diagrams.py --svg    # SVG output
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│                        Client Applications                         │
-│               (Swagger UI / curl / Utility Systems)                │
-└──────────────────────────────┬──────────────────────────────────────┘
-                               │ REST API (OpenAPI 3.1)
-                               │ X-API-Key Authentication
-┌──────────────────────────────▼──────────────────────────────────────┐
-│                     FastAPI Application Layer                       │
-│  ┌──────────┐ ┌──────────┐ ┌──────────────┐ ┌──────────────────┐   │
-│  │ /meters  │ │/readings │ │/usage-points │ │   /analytics     │   │
-│  └────┬─────┘ └────┬─────┘ └──────┬───────┘ └────────┬─────────┘   │
-└───────┼─────────────┼──────────────┼──────────────────┼─────────────┘
-        │             │              │                  │
-┌───────▼─────────────▼──────────────▼──────────────────▼─────────────┐
-│                       Simulator Engine                               │
-│                                                                      │
-│  ┌──────────────────┐  ┌────────────────┐  ┌──────────────────────┐  │
-│  │   Gridstream HES │  │   Core MDMS    │  │  Gridstream Analytics│  │
-│  │   (Headend)      │  │   (VEE)        │  │  (Demand/Voltage)   │  │
-│  │                  │  │                │  │                      │  │
-│  │  Raw data        │  │  Validation    │  │  Demand summary      │  │
-│  │  collection      │──▶  Estimation    │  │  Voltage analysis    │  │
-│  │                  │  │  Editing       │  │  Revenue protection  │  │
-│  └────────┬─────────┘  └────────────────┘  └──────────────────────┘  │
-│           │                                                          │
-│  ┌────────▼─────────┐  ┌────────────────┐                            │
-│  │    Meter Park     │  │ Data Generator │                            │
-│  │  (Fleet Mgmt)    │◀─│ (Time Series)  │                            │
-│  └──────────────────┘  └────────────────┘                            │
-└──────────────────────────────────────────────────────────────────────┘
-```
+
+## Features
+
+- **CIM-compliant data models** — All entities follow IEC 61968-9:2024 Common Information Model
+- **Realistic meter fleet** — 50 meters across 4 Landis+Gyr models with weighted distribution
+- **Time-series generation** — 30 days of 15-minute interval data with duck curves, seasonal patterns, and quality injection
+- **VEE pipeline** — Validation (range/spike checks), Estimation (linear interpolation), Editing
+- **Analytics engine** — Demand summaries, voltage analysis with ANSI C84.1 compliance, revenue protection alerts
+- **Delivery promises** — Asynchronous on-demand read requests with simulated communication latency and failure rates
+- **Solar simulation** — ~20% of residential meters generate reverse energy flow readings
+- **Deterministic seeding** — Reproducible data generation for testing
 
 ## Data Models (IEC 61968-9 CIM)
 
 All data models follow the IEC 61968-9:2024 Common Information Model (CIM) standard. Key entities:
 
 - **EndDevice / Meter** — Physical metering device with communication module
-- **ReadingType** — Describes the nature of readings (energy, demand, voltage) using CIM 18-attribute coded structure
+- **ReadingType** — Describes the nature of readings (energy, demand, voltage) using CIM coded structure
 - **IntervalReading** — Single timestamped measurement with quality annotations
 - **IntervalBlock** — Collection of consecutive interval readings
 - **MeterReading** — Complete reading set from a meter for a reading type
 - **UsagePoint** — Logical point where consumption is measured
+- **DeliveryPromise** — Asynchronous on-demand read request with per-meter collection status
 
 ## Simulated Meter Types
 
@@ -58,6 +59,26 @@ All data models follow the IEC 61968-9:2024 Common Information Model (CIM) stand
 | E360 | Residential Advanced | 1φ (AN) | 24 kW | Cellular LTE / RF Mesh | 30% |
 | S4x/E650 | C&I Polyphase | 3φ (ABCN) | 96 kW | Cellular LTE / RF Mesh | 20% |
 | E660/Revelo | C&I IoT | 3φ (ABCN) | 192 kW | Cellular LTE | 10% |
+
+### Reading Types
+
+| mRID | Kind | Flow | Unit | Description |
+|------|------|------|------|-------------|
+| `rt-forward-energy-wh` | energy | forward | Wh | Forward active energy (all meters) |
+| `rt-reverse-energy-wh` | energy | reverse | Wh | Reverse energy (solar meters only) |
+| `rt-demand-w` | demand | forward | W | Instantaneous demand |
+| `rt-voltage-v` | voltage | none | V | Voltage measurement |
+
+### Delivery Promise Simulation
+
+On-demand reads simulate realistic communication characteristics per technology:
+
+| Comm Type | Latency Range | Base Failure Rate |
+|-----------|---------------|-------------------|
+| Cellular LTE | 3–8 seconds | 5% |
+| RF Mesh | 8–20 seconds | 10% |
+| PLC | 12–25 seconds | 15% |
+| COMM_FAILURE meters | — | 80% |
 
 ## Prerequisites
 
@@ -69,7 +90,7 @@ All data models follow the IEC 61968-9:2024 Common Information Model (CIM) stand
 ```bash
 # Clone the repository
 git clone <repository-url>
-cd MeterAPIforHeadend
+cd PokeAMI
 
 # Create and activate virtual environment
 python -m venv .venv
@@ -81,7 +102,7 @@ source .venv/Scripts/activate   # Windows Git Bash
 # Install dependencies
 pip install -r requirements.txt
 
-# Configure (optional - defaults work out of the box)
+# Configure (optional — defaults work out of the box)
 cp .env.example .env
 # Edit .env as needed
 ```
@@ -92,7 +113,7 @@ cp .env.example .env
 python main.py
 ```
 
-The server starts on `http://localhost:8000` by default. On first startup, the simulator generates realistic meter data (50 meters × 30 days of 15-minute intervals).
+The server starts on `http://localhost:8000` by default. On first startup, the simulator generates realistic meter data (50 meters x 30 days of 15-minute intervals).
 
 - **Swagger UI:** http://localhost:8000/docs
 - **ReDoc:** http://localhost:8000/redoc
@@ -102,20 +123,55 @@ The server starts on `http://localhost:8000` by default. On first startup, the s
 
 All endpoints (except health) require the `X-API-Key` header.
 
+### Health
+
 | Endpoint | Method | Description |
 |----------|--------|-------------|
 | `/api/v1/health` | GET | Health check (no auth required) |
-| `/api/v1/meters` | GET | List meters (filter: type, status, comm_type) |
+
+### Meters
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/v1/meters` | GET | List meters (filter: `meter_type`, `status`, `comm_type`; paginated) |
 | `/api/v1/meters/{meter_id}` | GET | Get meter by mRID |
-| `/api/v1/meters/{meter_id}/readings` | GET | Get readings (params: start, end, reading_type_mrid, validated_only) |
-| `/api/v1/usage-points` | GET | List usage points (filter: connection_state) |
+
+### Readings
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/v1/meters/{meter_id}/readings` | GET | Get readings (params: `start`, `end`, `reading_type_mrid`, `validated_only`) |
+| `/api/v1/interval-blocks` | GET | Cross-meter interval block query (params: `start`, `end`, `meter_mrids`, `reading_type_mrid`) |
+
+### Usage Points
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/v1/usage-points` | GET | List usage points (filter: `connection_state`) |
 | `/api/v1/usage-points/{id}` | GET | Get usage point by mRID |
-| `/api/v1/usage-points/{id}/meter-readings` | GET | Readings for all meters at usage point |
+| `/api/v1/usage-points/{id}/meter-readings` | GET | Readings for all meters at a usage point |
+
+### Reading Types
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
 | `/api/v1/reading-types` | GET | List all available reading types |
-| `/api/v1/interval-blocks` | GET | Query interval blocks (params: start, end, meter_mrids, reading_type_mrid) |
-| `/api/v1/analytics/demand-summary` | GET | Demand analytics (params: start, end, meter_mrid) |
-| `/api/v1/analytics/voltage-summary` | GET | Voltage analytics (params: start, end, meter_mrid) |
-| `/api/v1/analytics/revenue-protection-alerts` | GET | Revenue protection alerts |
+
+### Analytics
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/v1/analytics/demand-summary` | GET | Demand analytics (params: `start`, `end`, `meter_mrid`) |
+| `/api/v1/analytics/voltage-summary` | GET | Voltage analytics with ANSI C84.1 compliance |
+| `/api/v1/analytics/revenue-protection-alerts` | GET | Revenue protection anomaly alerts |
+
+### Delivery Promises
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/v1/delivery-promises` | POST | Create async on-demand read request (body: `meter_mrids`, `start`, `end`, `reading_type_mrid`, `validated_only`) |
+| `/api/v1/delivery-promises/{promise_id}` | GET | Poll promise status (pending → inProgress → completed / partial / failed) |
+| `/api/v1/delivery-promises` | GET | List all delivery promises (paginated) |
 
 ## Authentication
 
@@ -137,7 +193,7 @@ curl -H "X-API-Key: dev-api-key-change-me" http://localhost:8000/api/v1/meters
 # Get a specific meter
 curl -H "X-API-Key: dev-api-key-change-me" http://localhost:8000/api/v1/meters/{meter_id}
 
-# Get readings for a meter (with optional filters)
+# Get validated readings for a meter
 curl -H "X-API-Key: dev-api-key-change-me" \
   "http://localhost:8000/api/v1/meters/{meter_id}/readings?reading_type_mrid=rt-forward-energy-wh&validated_only=true"
 
@@ -148,7 +204,34 @@ curl -H "X-API-Key: dev-api-key-change-me" \
 # List reading types
 curl -H "X-API-Key: dev-api-key-change-me" \
   http://localhost:8000/api/v1/reading-types
+
+# Create an on-demand read request
+curl -X POST -H "X-API-Key: dev-api-key-change-me" \
+  -H "Content-Type: application/json" \
+  -d '{"meter_mrids": ["meter-001"], "start": "2025-01-01T00:00:00Z", "end": "2025-01-02T00:00:00Z"}' \
+  http://localhost:8000/api/v1/delivery-promises
+
+# Poll the delivery promise
+curl -H "X-API-Key: dev-api-key-change-me" \
+  http://localhost:8000/api/v1/delivery-promises/{promise_id}
 ```
+
+## Demo Scripts
+
+The `demo/` directory contains scripts for exercising and demonstrating the API:
+
+```bash
+# Full API demo — starts the server and exercises every endpoint
+python demo/run_demo.py
+
+# CNI client demo — polls the API with known meter mRIDs
+python demo/cni_demo.py --cycles 5
+
+# Render PlantUML architecture diagrams to PNG/SVG
+python demo/render_diagrams.py --svg --online
+```
+
+A training video script is available at `demo/TRAINING_VIDEO_SCRIPT.md` for utility integration engineers.
 
 ## Testing
 
@@ -156,14 +239,20 @@ curl -H "X-API-Key: dev-api-key-change-me" \
 # Run all tests
 pytest tests/ -v
 
-# Run specific test categories
-pytest tests/test_models.py -v          # CIM model validation
-pytest tests/test_headend.py -v         # Headend simulator
-pytest tests/test_mdm.py -v            # MDM/VEE pipeline
-pytest tests/test_analytics.py -v       # Analytics engine
-pytest tests/test_api_meters.py -v      # Meter API endpoints
-pytest tests/test_auth.py -v            # Authentication
-pytest tests/test_e2e.py -v             # End-to-end flows
+# Run by category
+pytest tests/test_models.py -v              # CIM model validation
+pytest tests/test_headend.py -v             # Headend simulator
+pytest tests/test_mdm.py -v                 # MDM/VEE pipeline
+pytest tests/test_analytics.py -v           # Analytics engine
+pytest tests/test_delivery_promises.py -v   # Delivery manager
+pytest tests/test_auth.py -v                # Authentication
+pytest tests/test_api_meters.py -v          # Meter API endpoints
+pytest tests/test_api_readings.py -v        # Reading API endpoints
+pytest tests/test_api_usage_points.py -v    # Usage point API endpoints
+pytest tests/test_api_reading_types.py -v   # Reading type API endpoints
+pytest tests/test_api_analytics.py -v       # Analytics API endpoints
+pytest tests/test_api_delivery_promises.py -v  # Delivery promise API endpoints
+pytest tests/test_e2e.py -v                 # End-to-end flows
 ```
 
 Tests use a small dataset (5 meters, 3 days) with a deterministic seed for fast, reproducible execution.
@@ -194,7 +283,7 @@ This implementation references the following standards and resources. See [BIBLI
 ## Project Structure
 
 ```
-MeterAPIforHeadend/
+PokeAMI/
 ├── main.py                    # Entry point (uvicorn runner)
 ├── requirements.txt           # Python dependencies
 ├── .env.example               # Environment variable template
@@ -209,27 +298,46 @@ MeterAPIforHeadend/
 │   │   ├── meter.py           # EndDevice, Meter, CommModule
 │   │   ├── reading.py         # ReadingType, IntervalReading, MeterReading
 │   │   ├── usage_point.py     # UsagePoint
-│   │   └── analytics.py       # DemandSummary, VoltageSummary, alerts
+│   │   ├── analytics.py       # DemandSummary, VoltageSummary, alerts
+│   │   └── delivery_promise.py # DeliveryPromise, MeterDeliveryResult
 │   ├── routers/               # API endpoint handlers
 │   │   ├── health.py          # Health check
 │   │   ├── meters.py          # Meter endpoints
 │   │   ├── readings.py        # Reading endpoints
 │   │   ├── usage_points.py    # Usage point endpoints
 │   │   ├── reading_types.py   # Reading type endpoints
-│   │   └── analytics.py       # Analytics endpoints
+│   │   ├── analytics.py       # Analytics endpoints
+│   │   └── delivery_promises.py # Delivery promise endpoints
 │   └── simulator/             # Simulated L+G components
 │       ├── __init__.py        # SimulatorEngine facade
 │       ├── meter_park.py      # Fleet generation
 │       ├── data_generator.py  # Time-series generation
 │       ├── headend.py         # Simulated Gridstream HES
 │       ├── mdm.py             # Simulated MDM with VEE
-│       └── analytics_engine.py # Analytics platform
+│       ├── analytics_engine.py # Analytics platform
+│       └── delivery_manager.py # On-demand read simulation
 ├── tests/                     # Test suite
 │   ├── conftest.py            # Shared fixtures
-│   └── test_*.py              # Test modules
+│   └── test_*.py              # Test modules (13 files)
+├── demo/                      # Demo & training scripts
+│   ├── run_demo.py            # Full API demo runner
+│   ├── cni_demo.py            # CNI client polling demo
+│   ├── render_diagrams.py     # PlantUML diagram renderer
+│   └── TRAINING_VIDEO_SCRIPT.md # Training video walkthrough
 └── docs/
     └── diagrams/              # PlantUML architecture diagrams
 ```
+
+## Tech Stack
+
+| Component | Technology |
+|-----------|-----------|
+| Language | Python 3.13 |
+| Framework | FastAPI (OpenAPI 3.1) |
+| Models | Pydantic v2 |
+| Config | pydantic-settings + .env |
+| Testing | pytest + httpx (TestClient) |
+| Server | uvicorn |
 
 ## License
 
