@@ -113,15 +113,21 @@ cp .env.example .env
 python main.py
 ```
 
-The server starts on `http://localhost:8000` by default. On first startup, the simulator generates realistic meter data (50 meters x 30 days of 15-minute intervals).
+On first startup, the simulator generates realistic meter data (50 meters x 30 days of 15-minute intervals). Two servers start on separate ports:
 
-- **Swagger UI:** http://localhost:8000/docs
-- **ReDoc:** http://localhost:8000/redoc
-- **OpenAPI JSON:** http://localhost:8000/openapi.json
+| Service | URL | Description |
+|---------|-----|-------------|
+| **Swagger UI** | http://localhost:8000/docs | Interactive API documentation |
+| **ReDoc** | http://localhost:8000/redoc | Alternative API documentation |
+| **OpenAPI JSON** | http://localhost:8000/openapi.json | Machine-readable API spec |
+| **Health Check** | http://localhost:8000/api/v1/health | API health (no auth) |
+| **Dashboard** | http://localhost:8001/dashboard | Interactive control panel UI |
+
+The API server runs on port 8000 (configurable via `PORT`). The dashboard runs on port 8001 (configurable via `DASHBOARD_PORT`) and makes cross-origin calls to the API server via CORS.
 
 ## API Endpoints
 
-All endpoints (except health) require the `X-API-Key` header.
+All endpoints (except health, simulator status, and dashboard) require the `X-API-Key` header.
 
 ### Health
 
@@ -172,6 +178,75 @@ All endpoints (except health) require the `X-API-Key` header.
 | `/api/v1/delivery-promises` | POST | Create async on-demand read request (body: `meter_mrids`, `start`, `end`, `reading_type_mrid`, `validated_only`) |
 | `/api/v1/delivery-promises/{promise_id}` | GET | Poll promise status (pending → inProgress → completed / partial / failed) |
 | `/api/v1/delivery-promises` | GET | List all delivery promises (paginated) |
+
+### Simulator Control
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/v1/simulator/status` | GET | Component status and event log (no auth required) |
+| `/api/v1/simulator/{component}/stop` | POST | Disable a simulator component |
+| `/api/v1/simulator/{component}/start` | POST | Enable a simulator component |
+
+### Dashboard
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/dashboard` (port 8001) | GET | Interactive control panel UI (no auth required) |
+
+## Endpoint-to-Component Map
+
+Each API endpoint flows through the **SimulatorEngine** facade into one or more underlying components. The table below shows which emulated AMI components are exercised by each endpoint.
+
+**Emulated AMI components** (these represent real Landis+Gyr infrastructure):
+- **MeterPark** — Fleet generation and meter/usage-point inventory (emulates physical meter fleet)
+- **DataGenerator** — Time-series generation and reading type catalog (emulates meter telemetry)
+- **Headend** — Simulated Gridstream HES (raw data collection gateway)
+- **MDM** — Simulated Core MDMS with VEE pipeline (Validation, Estimation, Editing)
+- **AnalyticsEngine** — Simulated Gridstream Analytics (demand, voltage, revenue protection)
+- **DeliveryManager** — Simulated on-demand read promise lifecycle with comm latency
+
+| Endpoint | MeterPark | DataGen | Headend | MDM | Analytics | Delivery Mgr |
+|----------|:---------:|:-------:|:-------:|:---:|:---------:|:------------:|
+| `GET /health` | x | | x | | | |
+| `GET /meters` | x | | x | | | |
+| `GET /meters/{id}` | x | | x | | | |
+| `GET /meters/{id}/readings` | | | x | x* | | |
+| `GET /interval-blocks` | x* | | x | | | |
+| `GET /usage-points` | x | | x | | | |
+| `GET /usage-points/{id}` | x | | x | | | |
+| `GET /usage-points/{id}/meter-readings` | x | | x | | | |
+| `GET /reading-types` | | x | x | | | |
+| `GET /analytics/demand-summary` | x | | x | | x | |
+| `GET /analytics/voltage-summary` | x | | x | | x | |
+| `GET /analytics/revenue-protection-alerts` | x | | x | | x | |
+| `POST /delivery-promises` | x | | x | x* | | x |
+| `GET /delivery-promises/{id}` | x | | x | x* | | x |
+| `GET /delivery-promises` | x | | x | x* | | x |
+
+**Legend:**
+- **x** — always involved
+- **x*** — conditionally involved (`MDM` only when `validated_only=True`; `MeterPark` only when no meter filter is specified)
+
+**Data flow summary:**
+
+- **Meter & usage-point queries** flow through Headend → MeterPark (inventory lookup).
+- **Reading queries** flow through Headend for raw data, or Headend → MDM when `validated_only=True` triggers the VEE pipeline.
+- **Reading types** flow through Headend → DataGenerator (the catalog of measurement types).
+- **Analytics** flow through AnalyticsEngine, which pulls raw readings from Headend and aggregates them.
+- **Delivery promises** are managed by DeliveryManager, which simulates communication latency and collects readings from Headend (or MDM) as each meter's simulated response arrives.
+
+### Simulation-only endpoints
+
+The following endpoints are **not part of the emulated AMI architecture**. They exist solely to control the simulation for testing and demonstration purposes, allowing you to stop/start individual components and view the simulator's internal event log from the dashboard.
+
+| Endpoint | Description |
+|----------|-------------|
+| `GET /simulator/status` | Returns enabled/disabled state for each component and recent EventLog entries |
+| `POST /simulator/{component}/stop` | Disables a component (makes its data unavailable) |
+| `POST /simulator/{component}/start` | Re-enables a component |
+| `GET /dashboard` (port 8001) | Interactive control panel UI — uses all of the above |
+
+These use the **EventLog** (an internal ring buffer), which is simulation scaffolding with no real-world AMI equivalent.
 
 ## Authentication
 
@@ -268,7 +343,8 @@ Environment variables (set in `.env` or environment):
 | `DATA_DAYS` | `30` | Days of historical data to generate |
 | `INTERVAL_MINUTES` | `15` | Interval between readings in minutes |
 | `HOST` | `0.0.0.0` | Server bind address |
-| `PORT` | `8000` | Server port |
+| `PORT` | `8000` | API server port |
+| `DASHBOARD_PORT` | `8001` | Dashboard server port |
 
 ## Standards References
 
@@ -284,14 +360,15 @@ This implementation references the following standards and resources. See [BIBLI
 
 ```
 PokeAMI/
-├── main.py                    # Entry point (uvicorn runner)
+├── main.py                    # Entry point (runs API + dashboard servers)
 ├── requirements.txt           # Python dependencies
 ├── .env.example               # Environment variable template
 ├── BIBLIOGRAPHY.md            # Complete standards bibliography
 ├── app/
 │   ├── config.py              # Settings via pydantic-settings
 │   ├── auth.py                # API key authentication
-│   ├── main.py                # FastAPI app factory + lifespan
+│   ├── main.py                # FastAPI API app factory + lifespan
+│   ├── dashboard_app.py       # Standalone dashboard app (port 8001)
 │   ├── models/                # CIM data models (Pydantic)
 │   │   ├── enums.py           # CIM enumerations
 │   │   ├── common.py          # DateTimeInterval, pagination
@@ -307,7 +384,9 @@ PokeAMI/
 │   │   ├── usage_points.py    # Usage point endpoints
 │   │   ├── reading_types.py   # Reading type endpoints
 │   │   ├── analytics.py       # Analytics endpoints
-│   │   └── delivery_promises.py # Delivery promise endpoints
+│   │   ├── delivery_promises.py # Delivery promise endpoints
+│   │   ├── simulator.py       # Simulator control endpoints
+│   │   └── dashboard.py       # Dashboard HTML SPA
 │   └── simulator/             # Simulated L+G components
 │       ├── __init__.py        # SimulatorEngine facade
 │       ├── meter_park.py      # Fleet generation
@@ -315,7 +394,8 @@ PokeAMI/
 │       ├── headend.py         # Simulated Gridstream HES
 │       ├── mdm.py             # Simulated MDM with VEE
 │       ├── analytics_engine.py # Analytics platform
-│       └── delivery_manager.py # On-demand read simulation
+│       ├── delivery_manager.py # On-demand read simulation
+│       └── event_log.py       # Simulator event log
 ├── tests/                     # Test suite
 │   ├── conftest.py            # Shared fixtures
 │   └── test_*.py              # Test modules (13 files)

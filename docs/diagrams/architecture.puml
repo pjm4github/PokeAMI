@@ -3,22 +3,56 @@
 
 title PokeAMI — Simulated AMI Architecture
 
-node "Smart Meters" {
-    [E350 Residential] as E350
-    [E360 Advanced] as E360
-    [S4x/E650 C&I] as S4x
-    [E660/Revelo IoT] as E660
+skinparam frame {
+    BackgroundColor<<sim>> #FFF8E1
+    BorderColor<<sim>> #FFC107
 }
 
-cloud "Communication Network" {
-    [RF Mesh] as RF
-    [PLC] as PLC
-    [Cellular LTE] as LTE
+' ============================================================
+'  Simulation Layer
+'  (generates data and controls the emulated components)
+' ============================================================
+
+frame "Simulation Layer (no real-world equivalent)" <<sim>> {
+
+    frame "Simulated Smart Meters" <<sim>> as SM {
+        [MeterPark\n--\nFleet generation\n(E350/E360/S4x/E660)\nUsage points, comm modules\nweighted distribution] as MP
+        [DataGenerator\n--\nTime-series generation\nDuck curves, seasonal patterns\nQuality injection\nSolar reverse flow] as DG
+    }
+
+    note bottom of SM
+        **MeterPark** creates meter objects with realistic specs.
+        **DataGenerator** produces 15-min interval readings
+        (energy, demand, voltage) per meter, with load curves,
+        seasonal variation, and quality injection (2% estimated,
+        0.5% suspect, 0.2% missing).
+    end note
+
+    [Simulator Engine\n(facade)] as SE
+    [Event Log] as EL
+
+    frame "Control Endpoints" <<sim>> as CE {
+        [/simulator/status] as SimStatus
+        [/simulator/stop|start] as SimCtrl
+    }
+
+    [Dashboard\n(port 8001)] as Dash
+}
+
+' ============================================================
+'  Emulated AMI Components
+'  (represent real Landis+Gyr infrastructure)
+' ============================================================
+
+cloud "Communication Network\n(emulated)" as COMM {
+    [RF Mesh\n3-8 hops, 8-20s latency\n10% failure rate] as RF
+    [PLC\n12-25s latency\n15% failure rate] as PLC
+    [Cellular LTE\n3-8s latency\n5% failure rate] as LTE
 }
 
 node "Gridstream HES\n(Head-End System)" as HES {
-    [Data Collection]
-    [Meter Inventory]
+    [Data Collection\n& Storage] as DC
+    [Meter Inventory] as MI
 }
 
 node "Core MDMS\n(Meter Data Mgmt)" as MDM {
@@ -34,42 +68,86 @@ node "Gridstream Analytics" as GA {
 }
 
 node "Delivery Manager\n(On-Demand Reads)" as DM {
-    [Promise Tracking]
-    [Comm Latency Simulation]
+    [Promise Tracking] as PT
+    [Comm Latency &\nFailure Simulation] as CLS
 }
 
-node "REST API\n(FastAPI + OpenAPI 3.1)" as API {
+node "REST API\n(FastAPI + OpenAPI 3.1)\nport 8000" as API {
     [/meters]
     [/readings]
     [/usage-points]
+    [/reading-types]
     [/analytics]
     [/delivery-promises]
 }
 
 actor "Client Applications" as Client
 
-E350 --> RF
-E360 --> LTE
-S4x --> LTE
-E660 --> LTE
-E350 --> PLC
+' ============================================================
+'  Data generation: simulation → meters → comm network → HES
+' ============================================================
 
-RF --> HES
-PLC --> HES
-LTE --> HES
+MP -down-> COMM : meter fleet\n(objects + config)
+DG -down-> COMM : generated readings\n(energy, demand,\nvoltage, quality)
 
-HES --> MDM : raw readings
-MDM --> GA : validated data
-HES --> GA : raw data
+COMM -down-> HES : bulk collection\n(startup)
+
+' ============================================================
+'  On-demand read flow
+'  Client → API → Delivery Manager → HES → Comm Network
+'  → Meter (DataGenerator) → Comm Network → HES → response
+' ============================================================
+
+DM -up-> HES : 1. request\non-demand read
+HES -up-> COMM : 2. route to meter\nvia comm path
+COMM -up-> DG : 3. meter produces\nfresh reading
+COMM -down-> HES : 4. reading returns\n(with latency + possible failure)
+HES -down-> DM : 5. deliver collected\nreadings
+
+note right of DM
+    **On-demand read lifecycle:**
+    1. Delivery Manager asks HES to read a meter
+    2. HES routes through the comm network
+    3. Meter (DataGenerator) produces a reading
+    4. Response traverses back with simulated
+       latency and failure rate per comm type
+    5. HES delivers collected data to the promise
+    COMM_FAILURE meters: 80% failure rate
+end note
+
+' ============================================================
+'  Emulated AMI data flow (historical/batch)
+' ============================================================
+
+HES -down-> MDM : raw readings
+HES -down-> GA : raw data
+MDM -down-> GA : validated data
 
 HES --> API
 MDM --> API
 GA --> API
 DM --> API
 
-HES --> DM : on-demand collection
-MDM --> DM : validated reads
-
 Client --> API : HTTP + X-API-Key
+
+' ============================================================
+'  Simulation control flow
+' ============================================================
+
+SE ..> HES : wraps
+SE ..> MDM : wraps
+SE ..> GA : wraps
+SE ..> DM : wraps
+SE ..> MP : wraps
+SE ..> DG : wraps
+
+SimCtrl ..> SE : stop/start\ncomponents
+SimStatus ..> SE : poll status
+SimStatus ..> EL : read events
+SimCtrl ..> EL : log events
+
+Dash --> SimStatus : poll
+Dash --> SimCtrl : control
+Dash --> API : fetch data
 
 @enduml
