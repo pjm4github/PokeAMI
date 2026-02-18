@@ -1,0 +1,89 @@
+@startuml Architecture - Step 2: Communication Network
+!theme plain
+
+title <b>Step 2: Communication Pathways</b>\n<i>RF Mesh · PLC · Cellular LTE</i>
+
+skinparam backgroundColor #FEFEFE
+skinparam defaultFontSize 13
+
+' ── DIM everything by default ──
+skinparam node {
+    BackgroundColor #E0E0E0
+    BorderColor #BDBDBD
+    FontColor #9E9E9E
+    FontSize 14
+}
+skinparam cloud {
+    BackgroundColor #E0E0E0
+    BorderColor #BDBDBD
+    FontColor #9E9E9E
+}
+skinparam component {
+    FontSize 12
+    FontColor #9E9E9E
+    BackgroundColor #F5F5F5
+    BorderColor #E0E0E0
+}
+skinparam actor {
+    BackgroundColor #EEEEEE
+    BorderColor #BDBDBD
+}
+
+node "Smart Meters" as Meters #E8F5E9;line:66BB6A;text:2E7D32 {
+    [E350 Residential] as E350 #C8E6C9;line:66BB6A
+    [E360 Advanced] as E360 #C8E6C9;line:66BB6A
+    [S4x/E650 C&I] as S4x #C8E6C9;line:66BB6A
+    [E660/Revelo IoT] as E660 #C8E6C9;line:66BB6A
+}
+
+cloud "Communication Network" as Comm #E3F2FD;line:1565C0;text:0D47A1 {
+    [<b>RF Mesh</b>\nGridstream · 900MHz\n<i>E350, E360</i>] as RF #BBDEFB;line:1E88E5
+    [<b>PLC</b>\nPower Line Carrier\n<i>E350</i>] as PLC #BBDEFB;line:1E88E5
+    [<b>Cellular LTE</b>\n4G/LTE · Wide-area\n<i>E360, S4x, E660</i>] as LTE #BBDEFB;line:1E88E5
+}
+
+node "Gridstream HES\n(Head-End System)" as HES {
+    [Data Collection] as DC
+    [Meter Inventory] as MI
+}
+
+node "Core MDMS\n(Meter Data Mgmt)" as MDM {
+    [Validation] as Val
+    [Estimation] as Est
+    [Editing] as Edit
+}
+
+node "Gridstream Analytics" as GA {
+    [Demand Analysis] as DA
+    [Voltage Monitoring] as VM
+    [Revenue Protection] as RP
+}
+
+node "REST API\n(FastAPI + OpenAPI 3.1)" as API {
+    [/meters] as EM
+    [/readings] as ER
+    [/usage-points] as EU
+    [/analytics] as EA
+}
+
+actor "Client Applications" as Client
+
+E350 -[#1E88E5,bold]-> RF
+E360 -[#1E88E5,bold]-> LTE
+S4x -[#1E88E5,bold]-> LTE
+E660 -[#1E88E5,bold]-> LTE
+E350 -[#1E88E5,bold]-> PLC
+
+RF -[#1E88E5,bold]-> HES
+PLC -[#1E88E5,bold]-> HES
+LTE -[#1E88E5,bold]-> HES
+
+HES -[#BDBDBD]-> MDM
+MDM -[#BDBDBD]-> GA
+HES -[#BDBDBD]-> GA
+HES -[#BDBDBD]-> API
+MDM -[#BDBDBD]-> API
+GA -[#BDBDBD]-> API
+Client -[#BDBDBD]-> API
+
+@enduml

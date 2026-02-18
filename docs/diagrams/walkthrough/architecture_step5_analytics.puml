@@ -1,0 +1,89 @@
+@startuml Architecture - Step 5: Gridstream Analytics
+!theme plain
+
+title <b>Step 5: Gridstream Analytics</b>\n<i>Demand · Voltage · Revenue Protection</i>
+
+skinparam backgroundColor #FEFEFE
+skinparam defaultFontSize 13
+
+skinparam node {
+    BackgroundColor #E0E0E0
+    BorderColor #BDBDBD
+    FontColor #9E9E9E
+    FontSize 14
+}
+skinparam cloud {
+    BackgroundColor #EEEEEE
+    BorderColor #BDBDBD
+    FontColor #9E9E9E
+}
+skinparam component {
+    FontSize 12
+    FontColor #9E9E9E
+    BackgroundColor #F5F5F5
+    BorderColor #E0E0E0
+}
+skinparam actor {
+    BackgroundColor #EEEEEE
+    BorderColor #BDBDBD
+}
+
+node "Smart Meters" as Meters {
+    [E350 Residential] as E350
+    [E360 Advanced] as E360
+    [S4x/E650 C&I] as S4x
+    [E660/Revelo IoT] as E660
+}
+
+cloud "Communication Network" as Comm {
+    [RF Mesh] as RF
+    [PLC] as PLC
+    [Cellular LTE] as LTE
+}
+
+node "Gridstream HES\n(Head-End System)" as HES #FFF3E0;line:FFA726;text:E65100 {
+    [Data Collection] as DC #FFE0B2;line:FFA726
+    [Meter Inventory] as MI #FFE0B2;line:FFA726
+}
+
+node "Core MDMS\n(Meter Data Mgmt)" as MDM #E8F5E9;line:66BB6A;text:2E7D32 {
+    [Validation] as Val #C8E6C9;line:66BB6A
+    [Estimation] as Est #C8E6C9;line:66BB6A
+    [Editing] as Edit #C8E6C9;line:66BB6A
+}
+
+node "Gridstream Analytics" as GA #EDE7F6;line:6A1B9A;text:4A148C {
+    [<b>Demand Analysis</b>\nPeak / Avg / Min demand\nLoad factor\nTime-of-use profiles] as DA #D1C4E9;line:7E57C2
+    [<b>Voltage Monitoring</b>\nANSI C84.1 Range A\n±5% of nominal\nExceedance counts] as VM #D1C4E9;line:7E57C2
+    [<b>Revenue Protection</b>\nTamper detection\nReverse flow alerts\nConsumption anomalies] as RP #D1C4E9;line:7E57C2
+}
+
+node "REST API\n(FastAPI + OpenAPI 3.1)" as API {
+    [/meters] as EM
+    [/readings] as ER
+    [/usage-points] as EU
+    [/analytics] as EA
+}
+
+actor "Client Applications" as Client
+
+E350 -[#BDBDBD]-> RF
+E360 -[#BDBDBD]-> LTE
+S4x -[#BDBDBD]-> LTE
+E660 -[#BDBDBD]-> LTE
+E350 -[#BDBDBD]-> PLC
+
+RF -[#BDBDBD]-> HES
+PLC -[#BDBDBD]-> HES
+LTE -[#BDBDBD]-> HES
+
+HES -[#FFA726]-> MDM : raw readings
+MDM -[#6A1B9A,bold]-> GA : <b>validated data →</b>
+HES -[#6A1B9A,bold]-> GA : <b>raw data →</b>
+
+HES -[#BDBDBD]-> API
+MDM -[#BDBDBD]-> API
+GA -[#BDBDBD]-> API
+Client -[#BDBDBD]-> API
+
+@enduml

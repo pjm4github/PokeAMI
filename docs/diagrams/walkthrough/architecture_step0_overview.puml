@@ -1,0 +1,84 @@
+@startuml Architecture - Step 0: Full Overview
+!theme plain
+
+title <b>Simulated AMI Architecture</b>\n<i>Full System Overview</i>
+
+skinparam backgroundColor #FEFEFE
+skinparam defaultFontSize 13
+skinparam node {
+    BackgroundColor #E8EAF6
+    BorderColor #5C6BC0
+    FontSize 14
+}
+skinparam cloud {
+    BackgroundColor #E3F2FD
+    BorderColor #42A5F5
+}
+skinparam component {
+    FontSize 12
+}
+skinparam actor {
+    BackgroundColor #FFF3E0
+    BorderColor #FF9800
+}
+
+node "Smart Meters" as Meters {
+    [E350 Residential] as E350
+    [E360 Advanced] as E360
+    [S4x/E650 C&I] as S4x
+    [E660/Revelo IoT] as E660
+}
+
+cloud "Communication Network" as Comm {
+    [RF Mesh] as RF
+    [PLC] as PLC
+    [Cellular LTE] as LTE
+}
+
+node "Gridstream HES\n(Head-End System)" as HES {
+    [Data Collection] as DC
+    [Meter Inventory] as MI
+}
+
+node "Core MDMS\n(Meter Data Mgmt)" as MDM {
+    [Validation] as Val
+    [Estimation] as Est
+    [Editing] as Edit
+}
+
+node "Gridstream Analytics" as GA {
+    [Demand Analysis] as DA
+    [Voltage Monitoring] as VM
+    [Revenue Protection] as RP
+}
+
+node "REST API\n(FastAPI + OpenAPI 3.1)" as API {
+    [/meters] as EM
+    [/readings] as ER
+    [/usage-points] as EU
+    [/analytics] as EA
+}
+
+actor "Client Applications" as Client
+
+E350 --> RF
+E360 --> LTE
+S4x --> LTE
+E660 --> LTE
+E350 --> PLC
+
+RF --> HES
+PLC --> HES
+LTE --> HES
+
+HES --> MDM : raw readings
+MDM --> GA : validated data
+HES --> GA : raw data
+
+HES --> API
+MDM --> API
+GA --> API
+
+Client --> API : HTTP + X-API-Key
+
+@enduml

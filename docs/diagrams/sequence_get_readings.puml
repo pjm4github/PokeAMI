@@ -1,0 +1,33 @@
+@startuml Sequence - Get Meter Readings
+!theme plain
+
+title Get Meter Readings - Sequence Diagram
+
+actor Client
+participant "API Router\n(/meters/{id}/readings)" as Router
+participant "Auth\n(X-API-Key)" as Auth
+participant "SimulatorEngine" as Sim
+participant "MDM\n(VEE Pipeline)" as MDM
+participant "Headend\n(HES)" as HES
+
+Client -> Router : GET /api/v1/meters/{id}/readings\n?validated_only=true
+Router -> Auth : validate X-API-Key
+Auth --> Router : OK
+
+Router -> Sim : get_meter_readings(\n  meter_mrid, start, end,\n  reading_type_mrid,\n  validated_only=True)
+
+alt validated_only = true
+    Sim -> MDM : get_validated_readings(\n  meter_mrid, start, end)
+    MDM -> HES : get_meter_readings(\n  meter_mrid, start, end)
+    HES --> MDM : raw MeterReading[]
+    MDM -> MDM : apply VEE pipeline:\n  1. Validate (range, spike)\n  2. Estimate (interpolate)\n  3. Edit (flag mgmt)
+    MDM --> Sim : validated MeterReading[]
+else validated_only = false
+    Sim -> HES : get_meter_readings(\n  meter_mrid, start, end)
+    HES --> Sim : raw MeterReading[]
+end
+
+Sim --> Router : MeterReading[]
+Router --> Client : PaginatedResponse<MeterReading>\n200 OK
+
+@enduml

@@ -1,0 +1,47 @@
+@startuml Component - Step 1: Simulator Layer
+!theme plain
+
+title <b>Software Architecture: Simulator Layer</b>\n<i>MeterPark → DataGenerator → Headend → MDM → Analytics</i>
+
+skinparam backgroundColor #FEFEFE
+skinparam defaultFontSize 13
+skinparam package {
+    FontSize 14
+}
+
+package "API Layer" #F5F5F5;line:BDBDBD {
+    [FastAPI Application] as API #EEEEEE;line:BDBDBD;text:9E9E9E
+    [Auth Middleware] as Auth #EEEEEE;line:BDBDBD;text:9E9E9E
+    [Meters Router] as MR #EEEEEE;line:BDBDBD;text:9E9E9E
+    [Readings Router] as RR #EEEEEE;line:BDBDBD;text:9E9E9E
+    [Analytics Router] as AR #EEEEEE;line:BDBDBD;text:9E9E9E
+}
+
+package "Simulator Layer" #E3F2FD;line:1565C0 {
+    [<b>SimulatorEngine</b>\nFacade / entry point] as Engine #BBDEFB;line:1E88E5
+    [<b>Headend (HES)</b>\nRaw data collection\n& meter inventory] as HES #FFF3E0;line:FB8C00
+    [<b>MDM (VEE)</b>\nValidation\nEstimation\nEditing] as MDM #C8E6C9;line:43A047
+    [<b>Analytics Engine</b>\nDemand · Voltage\nRevenue protection] as AE #D1C4E9;line:7E57C2
+    [<b>Meter Park</b>\nFleet generation\n50 L+G meters\nUsagePoints] as MP #FFECB3;line:FFA000
+    [<b>Data Generator</b>\nLoad curves\nSeasonal patterns\nQuality injection] as DG #FFECB3;line:FFA000
+}
+
+API -[#BDBDBD]-> Auth
+API -[#BDBDBD]-> Engine
+
+MR -[#BDBDBD]-> Engine
+RR -[#BDBDBD]-> Engine
+AR -[#BDBDBD]-> Engine
+
+Engine -[#1E88E5,bold]-> HES : raw data
+Engine -[#1E88E5,bold]-> MDM : validated data
+Engine -[#1E88E5,bold]-> AE : analytics
+
+HES -[#FB8C00,bold]-> MP : meter inventory
+HES -[#FB8C00,bold]-> DG : data generation
+MDM -[#43A047,bold]-> HES : raw readings
+AE -[#7E57C2,bold]-> HES : raw readings
+
+MP -[#FFA000,bold]-> DG : meter specs
+
+@enduml

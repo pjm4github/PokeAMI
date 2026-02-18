@@ -1,0 +1,52 @@
+@startuml Component - Step 2: API Layer
+!theme plain
+
+title <b>Software Architecture: API Layer</b>\n<i>FastAPI routers · Auth · OpenAPI 3.1</i>
+
+skinparam backgroundColor #FEFEFE
+skinparam defaultFontSize 13
+skinparam package {
+    FontSize 14
+}
+
+package "API Layer" #FFEBEE;line:C62828 {
+    [<b>FastAPI Application</b>\nOpenAPI 3.1 auto-docs\nLifespan startup] as API #FFCDD2;line:E53935
+    [<b>Auth Middleware</b>\nX-API-Key header\n401 if missing/wrong] as Auth #FFCDD2;line:E53935
+
+    [<b>/health</b>\nNo auth required\nMonitoring endpoint] as Health #FFCDD2;line:E53935
+    [<b>/meters</b>\nList · Filter · Get\nType, status, comm] as MR #FFCDD2;line:E53935
+    [<b>/readings</b>\nRaw & VEE-validated\n/interval-blocks] as RR #FFCDD2;line:E53935
+    [<b>/usage-points</b>\nService locations\nCustomer mapping] as UP #FFCDD2;line:E53935
+    [<b>/reading-types</b>\nCIM 18-attribute\nReadingType catalog] as RT #FFCDD2;line:E53935
+    [<b>/analytics</b>\nDemand summary\nVoltage summary\nRevenue alerts] as AR #FFCDD2;line:E53935
+}
+
+package "Simulator Layer" #E3F2FD;line:64B5F6 {
+    [SimulatorEngine] as Engine #BBDEFB;line:64B5F6
+    [Headend (HES)] as HES #BBDEFB;line:64B5F6
+    [MDM (VEE)] as MDM #BBDEFB;line:64B5F6
+    [Analytics Engine] as AE #BBDEFB;line:64B5F6
+    [Meter Park] as MP #BBDEFB;line:64B5F6
+    [Data Generator] as DG #BBDEFB;line:64B5F6
+}
+
+API -[#C62828,bold]-> Auth : validates all\n(except /health)
+API -[#C62828,bold]-> Engine : queries
+
+Health -[#C62828]-> Engine
+MR -[#C62828]-> Engine
+RR -[#C62828]-> Engine
+UP -[#C62828]-> Engine
+RT -[#C62828]-> Engine
+AR -[#C62828]-> Engine
+
+Engine -[#64B5F6]-> HES
+Engine -[#64B5F6]-> MDM
+Engine -[#64B5F6]-> AE
+HES -[#64B5F6]-> MP
+HES -[#64B5F6]-> DG
+MDM -[#64B5F6]-> HES
+AE -[#64B5F6]-> HES
+MP -[#64B5F6]-> DG
+
+@enduml

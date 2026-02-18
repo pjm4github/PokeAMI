@@ -1,0 +1,89 @@
+@startuml Architecture - Step 4: Core MDMS (VEE Pipeline)
+!theme plain
+
+title <b>Step 4: Core MDMS — VEE Pipeline</b>\n<i>Validation · Estimation · Editing → billing-quality data</i>
+
+skinparam backgroundColor #FEFEFE
+skinparam defaultFontSize 13
+
+skinparam node {
+    BackgroundColor #E0E0E0
+    BorderColor #BDBDBD
+    FontColor #9E9E9E
+    FontSize 14
+}
+skinparam cloud {
+    BackgroundColor #EEEEEE
+    BorderColor #BDBDBD
+    FontColor #9E9E9E
+}
+skinparam component {
+    FontSize 12
+    FontColor #9E9E9E
+    BackgroundColor #F5F5F5
+    BorderColor #E0E0E0
+}
+skinparam actor {
+    BackgroundColor #EEEEEE
+    BorderColor #BDBDBD
+}
+
+node "Smart Meters" as Meters {
+    [E350 Residential] as E350
+    [E360 Advanced] as E360
+    [S4x/E650 C&I] as S4x
+    [E660/Revelo IoT] as E660
+}
+
+cloud "Communication Network" as Comm {
+    [RF Mesh] as RF
+    [PLC] as PLC
+    [Cellular LTE] as LTE
+}
+
+node "Gridstream HES\n(Head-End System)" as HES #FFF3E0;line:FFA726;text:E65100 {
+    [Data Collection] as DC #FFE0B2;line:FFA726
+    [Meter Inventory] as MI #FFE0B2;line:FFA726
+}
+
+node "Core MDMS\n(Meter Data Mgmt)" as MDM #E8F5E9;line:2E7D32;text:1B5E20 {
+    [<b>1. Validation</b>\nRange checks\nSpike detection\nNull detection] as Val #C8E6C9;line:43A047
+    [<b>2. Estimation</b>\nLinear interpolation\nGap filling\nNeighbor averaging] as Est #C8E6C9;line:43A047
+    [<b>3. Editing</b>\nQuality flag mgmt\nis_validated = true\nBilling determinants] as Edit #C8E6C9;line:43A047
+}
+
+node "Gridstream Analytics" as GA {
+    [Demand Analysis] as DA
+    [Voltage Monitoring] as VM
+    [Revenue Protection] as RP
+}
+
+node "REST API\n(FastAPI + OpenAPI 3.1)" as API {
+    [/meters] as EM
+    [/readings] as ER
+    [/usage-points] as EU
+    [/analytics] as EA
+}
+
+actor "Client Applications" as Client
+
+E350 -[#BDBDBD]-> RF
+E360 -[#BDBDBD]-> LTE
+S4x -[#BDBDBD]-> LTE
+E660 -[#BDBDBD]-> LTE
+E350 -[#BDBDBD]-> PLC
+
+RF -[#BDBDBD]-> HES
+PLC -[#BDBDBD]-> HES
+LTE -[#BDBDBD]-> HES
+
+HES -[#2E7D32,bold]-> MDM : <b>raw readings →</b>
+MDM -[#2E7D32,bold]-> GA : <b>validated data →</b>
+HES -[#BDBDBD]-> GA
+
+HES -[#BDBDBD]-> API
+MDM -[#BDBDBD]-> API
+GA -[#BDBDBD]-> API
+Client -[#BDBDBD]-> API
+
+@enduml

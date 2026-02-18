@@ -1,0 +1,42 @@
+@startuml Use Case Diagram
+!theme plain
+
+title Meter API for Headend - Use Cases
+
+left to right direction
+
+actor "Utility Analyst" as Analyst
+actor "Billing System" as Billing
+actor "Grid Operator" as Grid
+
+rectangle "Meter API for Headend" {
+    usecase "Retrieve Meter\nReadings" as UC1
+    usecase "Query Usage\nPoints" as UC2
+    usecase "View Demand\nAnalytics" as UC3
+    usecase "View Voltage\nAnalytics" as UC4
+    usecase "Check Revenue\nProtection Alerts" as UC5
+    usecase "List Available\nReading Types" as UC6
+    usecase "Get Validated\n(VEE) Readings" as UC7
+    usecase "Query Interval\nBlocks" as UC8
+}
+
+Analyst --> UC1
+Analyst --> UC2
+Analyst --> UC3
+Analyst --> UC4
+Analyst --> UC5
+Analyst --> UC6
+
+Billing --> UC1
+Billing --> UC7
+Billing --> UC2
+
+Grid --> UC4
+Grid --> UC3
+Grid --> UC5
+Grid --> UC8
+
+UC7 .> UC1 : <<extends>>
+UC8 .> UC1 : <<extends>>
+
+@enduml

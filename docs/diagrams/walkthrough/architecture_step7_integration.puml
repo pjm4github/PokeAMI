@@ -1,0 +1,81 @@
+@startuml Architecture - Step 7: Client Integration
+!theme plain
+
+title <b>Step 7: Integrating with Utility Systems</b>\n<i>Where consuming applications connect</i>
+
+skinparam backgroundColor #FEFEFE
+skinparam defaultFontSize 13
+
+skinparam node {
+    FontSize 14
+}
+skinparam component {
+    FontSize 12
+}
+
+node "Smart Meters" as Meters #E8F5E9;line:66BB6A;text:2E7D32 {
+    [E350 Residential] as E350 #C8E6C9;line:66BB6A
+    [E360 Advanced] as E360 #C8E6C9;line:66BB6A
+    [S4x/E650 C&I] as S4x #C8E6C9;line:66BB6A
+    [E660/Revelo IoT] as E660 #C8E6C9;line:66BB6A
+}
+
+cloud "Communication Network" as Comm #E3F2FD;line:64B5F6;text:1565C0 {
+    [RF Mesh] as RF #BBDEFB;line:64B5F6
+    [PLC] as PLC #BBDEFB;line:64B5F6
+    [Cellular LTE] as LTE #BBDEFB;line:64B5F6
+}
+
+node "Gridstream HES\n(Head-End System)" as HES #FFF3E0;line:FFA726;text:E65100 {
+    [Data Collection] as DC #FFE0B2;line:FFA726
+    [Meter Inventory] as MI #FFE0B2;line:FFA726
+}
+
+node "Core MDMS\n(Meter Data Mgmt)" as MDM #E8F5E9;line:43A047;text:1B5E20 {
+    [Validation] as Val #C8E6C9;line:43A047
+    [Estimation] as Est #C8E6C9;line:43A047
+    [Editing] as Edit #C8E6C9;line:43A047
+}
+
+node "Gridstream Analytics" as GA #EDE7F6;line:7E57C2;text:4A148C {
+    [Demand Analysis] as DA #D1C4E9;line:7E57C2
+    [Voltage Monitoring] as VM #D1C4E9;line:7E57C2
+    [Revenue Protection] as RP #D1C4E9;line:7E57C2
+}
+
+node "REST API\n(FastAPI + OpenAPI 3.1)" as API #FFEBEE;line:C62828;text:B71C1C {
+    [/meters] as EM #FFCDD2;line:E53935
+    [/readings] as ER #FFCDD2;line:E53935
+    [/usage-points] as EU #FFCDD2;line:E53935
+    [/analytics] as EA #FFCDD2;line:E53935
+}
+
+actor "<b>Billing System</b>\n(CIS)\nGET /readings\n?validated_only=true" as Billing #FFF3E0;line:E65100;text:BF360C
+actor "<b>Grid Operations</b>\n(OMS/ADMS)\nGET /analytics\n/voltage-summary" as Grid #FFF3E0;line:E65100;text:BF360C
+actor "<b>Customer Portal</b>\nGET /usage-points\nGET /readings" as Portal #FFF3E0;line:E65100;text:BF360C
+actor "<b>DERMS</b>\nGET /analytics\n/demand-summary" as DERMS #FFF3E0;line:E65100;text:BF360C
+
+E350 -[#66BB6A]-> RF
+E360 -[#66BB6A]-> LTE
+S4x -[#66BB6A]-> LTE
+E660 -[#66BB6A]-> LTE
+E350 -[#66BB6A]-> PLC
+
+RF -[#64B5F6]-> HES
+PLC -[#64B5F6]-> HES
+LTE -[#64B5F6]-> HES
+
+HES -[#FFA726]-> MDM : raw readings
+MDM -[#7E57C2]-> GA : validated data
+HES -[#7E57C2]-> GA : raw data
+
+HES -[#C62828]-> API
+MDM -[#C62828]-> API
+GA -[#C62828]-> API
+
+Billing -[#E65100,bold]-> API
+Grid -[#E65100,bold]-> API
+Portal -[#E65100,bold]-> API
+DERMS -[#E65100,bold]-> API
+
+@enduml

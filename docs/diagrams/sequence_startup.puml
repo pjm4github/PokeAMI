@@ -1,0 +1,41 @@
+@startuml Sequence - Application Startup
+!theme plain
+
+title Application Startup - Sequence Diagram
+
+participant "main.py\n(uvicorn)" as Main
+participant "FastAPI\nLifespan" as Lifespan
+participant "SimulatorEngine" as Engine
+participant "MeterPark" as MP
+participant "DataGenerator" as DG
+participant "Headend\n(HES)" as HES
+participant "MDM" as MDM
+
+Main -> Lifespan : startup event
+Lifespan -> Engine : create SimulatorEngine(\n  meter_count=50,\n  data_days=30,\n  interval_minutes=15)
+
+Engine -> MP : create MeterPark(50)
+MP -> MP : generate fleet:\n  40% E350\n  30% E360\n  20% S4x/E650\n  10% E660/Revelo
+MP -> MP : create UsagePoints\n  with addresses
+MP --> Engine : meters + usage_points
+
+Engine -> DG : create DataGenerator()
+Engine -> HES : create Headend(\n  meter_park, data_gen)
+Engine -> MDM : create MDM(headend)
+
+Lifespan -> Engine : initialize()
+Engine -> HES : initialize(\n  data_days=30,\n  interval_minutes=15)
+
+loop for each meter
+    HES -> DG : generate_meter_readings(\n  meter, is_solar,\n  data_days, interval_minutes)
+    DG -> DG : generate load curves:\n  residential duck curve\n  or C&I weekday/weekend
+    DG -> DG : inject quality:\n  2% estimated\n  0.5% suspect\n  0.2% missing
+    DG --> HES : MeterReading[]
+end
+
+HES --> Engine : data ready
+Engine --> Lifespan : initialized
+Lifespan -> Lifespan : store on app.state
+Lifespan --> Main : ready to serve
+
+@enduml

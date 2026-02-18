@@ -1,0 +1,89 @@
+@startuml Architecture - Step 1: Meter Fleet
+!theme plain
+
+title <b>Step 1: Landis+Gyr Meter Fleet</b>\n<i>Field devices — the data source</i>
+
+skinparam backgroundColor #FEFEFE
+skinparam defaultFontSize 13
+
+' ── HIGHLIGHTED: Meter Fleet ──
+skinparam node {
+    BackgroundColor #E0E0E0
+    BorderColor #BDBDBD
+    FontColor #9E9E9E
+    FontSize 14
+}
+skinparam cloud {
+    BackgroundColor #EEEEEE
+    BorderColor #BDBDBD
+    FontColor #9E9E9E
+}
+skinparam component {
+    FontSize 12
+    FontColor #9E9E9E
+    BackgroundColor #F5F5F5
+    BorderColor #E0E0E0
+}
+skinparam actor {
+    BackgroundColor #EEEEEE
+    BorderColor #BDBDBD
+}
+
+node "Smart Meters" as Meters #E8F5E9;line:2E7D32;text:1B5E20 {
+    [<b>E350</b> Residential\n1φ 120V · Form 2S\n<i>~40% of fleet</i>] as E350 #C8E6C9;line:43A047
+    [<b>E360</b> Advanced\n1φ 120V · LTE\n<i>~30% of fleet</i>] as E360 #C8E6C9;line:43A047
+    [<b>S4x/E650</b> C&I\n3φ 240V · Polyphase\n<i>~20% of fleet</i>] as S4x #C8E6C9;line:43A047
+    [<b>E660/Revelo</b> IoT\n3φ 240V · Grid-Edge\n<i>~10% of fleet</i>] as E660 #C8E6C9;line:43A047
+}
+
+cloud "Communication Network" as Comm {
+    [RF Mesh] as RF
+    [PLC] as PLC
+    [Cellular LTE] as LTE
+}
+
+node "Gridstream HES\n(Head-End System)" as HES {
+    [Data Collection] as DC
+    [Meter Inventory] as MI
+}
+
+node "Core MDMS\n(Meter Data Mgmt)" as MDM {
+    [Validation] as Val
+    [Estimation] as Est
+    [Editing] as Edit
+}
+
+node "Gridstream Analytics" as GA {
+    [Demand Analysis] as DA
+    [Voltage Monitoring] as VM
+    [Revenue Protection] as RP
+}
+
+node "REST API\n(FastAPI + OpenAPI 3.1)" as API {
+    [/meters] as EM
+    [/readings] as ER
+    [/usage-points] as EU
+    [/analytics] as EA
+}
+
+actor "Client Applications" as Client
+
+E350 -[#43A047]-> RF
+E360 -[#43A047]-> LTE
+S4x -[#43A047]-> LTE
+E660 -[#43A047]-> LTE
+E350 -[#43A047]-> PLC
+
+RF -[#BDBDBD]-> HES
+PLC -[#BDBDBD]-> HES
+LTE -[#BDBDBD]-> HES
+
+HES -[#BDBDBD]-> MDM
+MDM -[#BDBDBD]-> GA
+HES -[#BDBDBD]-> GA
+HES -[#BDBDBD]-> API
+MDM -[#BDBDBD]-> API
+GA -[#BDBDBD]-> API
+Client -[#BDBDBD]-> API
+
+@enduml

@@ -1,0 +1,88 @@
+@startuml Architecture - Step 3: Gridstream HES
+!theme plain
+
+title <b>Step 3: Gridstream Head-End System (HES)</b>\n<i>Central data collection — raw meter readings</i>
+
+skinparam backgroundColor #FEFEFE
+skinparam defaultFontSize 13
+
+skinparam node {
+    BackgroundColor #E0E0E0
+    BorderColor #BDBDBD
+    FontColor #9E9E9E
+    FontSize 14
+}
+skinparam cloud {
+    BackgroundColor #EEEEEE
+    BorderColor #BDBDBD
+    FontColor #9E9E9E
+}
+skinparam component {
+    FontSize 12
+    FontColor #9E9E9E
+    BackgroundColor #F5F5F5
+    BorderColor #E0E0E0
+}
+skinparam actor {
+    BackgroundColor #EEEEEE
+    BorderColor #BDBDBD
+}
+
+node "Smart Meters" as Meters #E8F5E9;line:66BB6A;text:2E7D32 {
+    [E350 Residential] as E350 #C8E6C9;line:66BB6A
+    [E360 Advanced] as E360 #C8E6C9;line:66BB6A
+    [S4x/E650 C&I] as S4x #C8E6C9;line:66BB6A
+    [E660/Revelo IoT] as E660 #C8E6C9;line:66BB6A
+}
+
+cloud "Communication Network" as Comm #E3F2FD;line:64B5F6;text:1565C0 {
+    [RF Mesh] as RF #BBDEFB;line:64B5F6
+    [PLC] as PLC #BBDEFB;line:64B5F6
+    [Cellular LTE] as LTE #BBDEFB;line:64B5F6
+}
+
+node "Gridstream HES\n(Head-End System)" as HES #FFF3E0;line:E65100;text:BF360C {
+    [<b>Data Collection</b>\n15-min interval reads\nOn-demand reads\nEvents & alarms] as DC #FFE0B2;line:FB8C00
+    [<b>Meter Inventory</b>\nDevice registry\nFirmware mgmt\nComm status] as MI #FFE0B2;line:FB8C00
+}
+
+node "Core MDMS\n(Meter Data Mgmt)" as MDM {
+    [Validation] as Val
+    [Estimation] as Est
+    [Editing] as Edit
+}
+
+node "Gridstream Analytics" as GA {
+    [Demand Analysis] as DA
+    [Voltage Monitoring] as VM
+    [Revenue Protection] as RP
+}
+
+node "REST API\n(FastAPI + OpenAPI 3.1)" as API {
+    [/meters] as EM
+    [/readings] as ER
+    [/usage-points] as EU
+    [/analytics] as EA
+}
+
+actor "Client Applications" as Client
+
+E350 -[#66BB6A]-> RF
+E360 -[#66BB6A]-> LTE
+S4x -[#66BB6A]-> LTE
+E660 -[#66BB6A]-> LTE
+E350 -[#66BB6A]-> PLC
+
+RF -[#E65100,bold]-> HES
+PLC -[#E65100,bold]-> HES
+LTE -[#E65100,bold]-> HES
+
+HES -[#E65100,bold]-> MDM : <b>raw readings</b>
+HES -[#E65100,dashed]-> GA : raw data
+MDM -[#BDBDBD]-> GA
+HES -[#BDBDBD]-> API
+MDM -[#BDBDBD]-> API
+GA -[#BDBDBD]-> API
+Client -[#BDBDBD]-> API
+
+@enduml

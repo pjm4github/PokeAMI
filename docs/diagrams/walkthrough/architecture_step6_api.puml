@@ -1,0 +1,90 @@
+@startuml Architecture - Step 6: REST API Layer
+!theme plain
+
+title <b>Step 6: CIM-Compatible REST API</b>\n<i>OpenAPI 3.1 · IEC 61968-9 · X-API-Key Auth</i>
+
+skinparam backgroundColor #FEFEFE
+skinparam defaultFontSize 13
+
+skinparam node {
+    BackgroundColor #E0E0E0
+    BorderColor #BDBDBD
+    FontColor #9E9E9E
+    FontSize 14
+}
+skinparam cloud {
+    BackgroundColor #EEEEEE
+    BorderColor #BDBDBD
+    FontColor #9E9E9E
+}
+skinparam component {
+    FontSize 12
+    FontColor #9E9E9E
+    BackgroundColor #F5F5F5
+    BorderColor #E0E0E0
+}
+skinparam actor {
+    BackgroundColor #EEEEEE
+    BorderColor #BDBDBD
+}
+
+node "Smart Meters" as Meters {
+    [E350 Residential] as E350
+    [E360 Advanced] as E360
+    [S4x/E650 C&I] as S4x
+    [E660/Revelo IoT] as E660
+}
+
+cloud "Communication Network" as Comm {
+    [RF Mesh] as RF
+    [PLC] as PLC
+    [Cellular LTE] as LTE
+}
+
+node "Gridstream HES\n(Head-End System)" as HES #FFF3E0;line:FFA726;text:E65100 {
+    [Data Collection] as DC #FFE0B2;line:FFA726
+    [Meter Inventory] as MI #FFE0B2;line:FFA726
+}
+
+node "Core MDMS\n(Meter Data Mgmt)" as MDM #E8F5E9;line:66BB6A;text:2E7D32 {
+    [Validation] as Val #C8E6C9;line:66BB6A
+    [Estimation] as Est #C8E6C9;line:66BB6A
+    [Editing] as Edit #C8E6C9;line:66BB6A
+}
+
+node "Gridstream Analytics" as GA #EDE7F6;line:9575CD;text:4A148C {
+    [Demand Analysis] as DA #D1C4E9;line:9575CD
+    [Voltage Monitoring] as VM #D1C4E9;line:9575CD
+    [Revenue Protection] as RP #D1C4E9;line:9575CD
+}
+
+node "REST API\n(FastAPI + OpenAPI 3.1)" as API #FFEBEE;line:C62828;text:B71C1C {
+    [<b>/meters</b>\nList, filter, inspect\nEndDevice inventory] as EM #FFCDD2;line:E53935
+    [<b>/readings</b>\nRaw & validated intervals\n/interval-blocks] as ER #FFCDD2;line:E53935
+    [<b>/usage-points</b>\nService locations\nCustomer mapping] as EU #FFCDD2;line:E53935
+    [<b>/analytics</b>\nDemand · Voltage\nRevenue protection] as EA #FFCDD2;line:E53935
+}
+
+actor "Client Applications" as Client #FFF3E0;line:FF9800;text:E65100
+
+E350 -[#BDBDBD]-> RF
+E360 -[#BDBDBD]-> LTE
+S4x -[#BDBDBD]-> LTE
+E660 -[#BDBDBD]-> LTE
+E350 -[#BDBDBD]-> PLC
+
+RF -[#BDBDBD]-> HES
+PLC -[#BDBDBD]-> HES
+LTE -[#BDBDBD]-> HES
+
+HES -[#FFA726]-> MDM : raw readings
+MDM -[#9575CD]-> GA : validated data
+HES -[#9575CD]-> GA : raw data
+
+HES -[#C62828,bold]-> API : <b>meter inventory\n& raw readings</b>
+MDM -[#C62828,bold]-> API : <b>validated readings</b>
+GA -[#C62828,bold]-> API : <b>analytics</b>
+
+Client -[#C62828,bold]-> API : <b>HTTP GET + X-API-Key</b>
+
+@enduml
