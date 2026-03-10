@@ -4,6 +4,10 @@ The HES is the central data collection system that communicates with field
 devices (meters) and collects raw meter reading data. This simulation stores
 raw (un-validated) readings keyed by meter mRID.
 
+Reading generation is delegated to MeterPark (which in turn delegates to
+each SmartMeter's ReadingSource), keeping the HES free of any direct
+dependency on DataGenerator.
+
 References:
     - Landis+Gyr Gridstream HES Product Description (publicly available)
     - Landis+Gyr Gridstream platform documentation (publicly available)
@@ -16,25 +20,23 @@ from datetime import datetime
 from app.models.meter import Meter
 from app.models.reading import MeterReading, ReadingType
 from app.models.usage_point import UsagePoint
-from app.simulator.data_generator import DataGenerator
 from app.simulator.meter_park import MeterPark
 
 
 class Headend:
     """Simulated Gridstream Head-End System.
 
-    Manages meter inventory via MeterPark and collects raw data
-    via DataGenerator. Stores un-validated MeterReading objects
-    keyed by meter_mrid.
+    Manages meter inventory via MeterPark and collects raw data by asking
+    each SmartMeter to read through its ReadingSource. Stores un-validated
+    MeterReading objects keyed by meter_mrid.
 
     References:
         - Landis+Gyr Gridstream HES Product Description
         - IEC 61968-9:2024, AMI system architecture
     """
 
-    def __init__(self, meter_park: MeterPark, data_generator: DataGenerator):
+    def __init__(self, meter_park: MeterPark):
         self._meter_park = meter_park
-        self._data_generator = data_generator
         # Raw readings: meter_mrid -> list[MeterReading]
         self._readings: dict[str, list[MeterReading]] = {}
         self._enabled: bool = True
@@ -60,11 +62,8 @@ class Headend:
             data_days: Number of days of historical data to generate.
             interval_minutes: Interval between readings in minutes.
         """
-        for mrid, meter in self._meter_park.meters.items():
-            is_solar = self._meter_park.is_solar_meter(meter)
-            readings = self._data_generator.generate_meter_readings(
-                meter, is_solar, data_days, interval_minutes
-            )
+        for mrid in self._meter_park.meters:
+            readings = self._meter_park.read_meter(mrid, data_days, interval_minutes)
             self._readings[mrid] = readings
 
     def get_meters(self) -> dict[str, Meter]:
@@ -139,6 +138,45 @@ class Headend:
 
         return readings
 
+    def collect_on_demand_reading(
+        self,
+        meter_mrid: str,
+        start: datetime | None = None,
+        end: datetime | None = None,
+        reading_type_mrid: str | None = None,
+        interval_minutes: int = 15,
+    ) -> list[MeterReading]:
+        """Collect a fresh on-demand reading from a meter via the comm network.
+
+        Unlike get_meter_readings() which returns pre-stored startup data,
+        this method asks the SmartMeter (through MeterPark) to produce fresh
+        readings for the requested time range — simulating the HES receiving
+        new data from the meter through the communication network.
+
+        The returned readings are NOT stored in self._readings; they represent
+        a one-time on-demand collection.
+
+        Args:
+            meter_mrid: Meter to collect from.
+            start: Start of the requested time range.
+            end: End of the requested time range.
+            reading_type_mrid: Optional reading type filter.
+            interval_minutes: Interval between readings in minutes.
+
+        Returns:
+            List of fresh (un-validated) MeterReading objects.
+        """
+        if not self._enabled:
+            return []
+
+        return self._meter_park.read_meter_on_demand(
+            mrid=meter_mrid,
+            start=start,
+            end=end,
+            interval_minutes=interval_minutes,
+            reading_type_mrid=reading_type_mrid,
+        )
+
     def get_all_readings_for_meter(self, meter_mrid: str) -> list[MeterReading]:
         """Get all raw readings for a meter (no filtering)."""
         if not self._enabled:
@@ -147,4 +185,4 @@ class Headend:
 
     def get_reading_types(self) -> dict[str, ReadingType]:
         """Return the catalog of available reading types."""
-        return self._data_generator.get_reading_types()
+        return self._meter_park.get_reading_types()

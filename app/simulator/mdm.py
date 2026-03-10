@@ -76,9 +76,9 @@ class MDM:
         raw_readings = self._headend.get_meter_readings(
             meter_mrid, start, end, reading_type_mrid
         )
-        return [self._apply_vee(r) for r in raw_readings]
+        return [self.apply_vee(r) for r in raw_readings]
 
-    def _apply_vee(self, reading: MeterReading) -> MeterReading:
+    def apply_vee(self, reading: MeterReading) -> MeterReading:
         """Apply the VEE pipeline to a meter reading.
 
         Pipeline:

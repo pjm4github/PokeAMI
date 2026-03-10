@@ -1,7 +1,8 @@
 """SimulatorEngine facade - wires all simulator components together.
 
 Architecture:
-    MeterPark → DataGenerator → Headend → MDM → AnalyticsEngine
+    DataGenerator ──ReadingSource──▶ MeterPark (SmartMeters)
+        ──▶ Headend ──▶ MDM ──▶ AnalyticsEngine
 
 References:
     - Landis+Gyr AMI architecture: Meters → HES → MDM → Analytics
@@ -16,6 +17,7 @@ from app.models.usage_point import UsagePoint
 from app.models.analytics import DemandSummary, RevenueProtectionAlert, VoltageSummary
 from app.models.delivery_promise import DeliveryPromise, DeliveryPromiseRequest
 from app.simulator.analytics_engine import AnalyticsEngine
+from app.simulator.comm_network import CommNetwork
 from app.simulator.data_generator import DataGenerator
 from app.simulator.delivery_manager import DeliveryManager
 from app.simulator.event_log import EventLog
@@ -30,11 +32,12 @@ class SimulatorEngine:
     """Facade that wires all simulator components.
 
     Components:
-        - MeterPark: Fleet generation and management
-        - DataGenerator: Realistic time-series generation
+        - DataGenerator: Realistic time-series generation (ReadingSource)
+        - MeterPark: Fleet of SmartMeters, each backed by the ReadingSource
         - Headend: Simulated Gridstream HES (raw data collection)
         - MDM: Meter Data Management with VEE pipeline
         - AnalyticsEngine: Demand, voltage, and revenue protection analytics
+        - CommNetwork: Simulated AMI communication pathways
 
     References:
         - Landis+Gyr Gridstream platform architecture
@@ -55,12 +58,13 @@ class SimulatorEngine:
 
         rng = random.Random(seed) if seed is not None else random.Random()
 
-        self._meter_park = MeterPark(meter_count, rng)
         self._data_generator = DataGenerator(rng)
-        self._headend = Headend(self._meter_park, self._data_generator)
+        self._meter_park = MeterPark(meter_count, self._data_generator, rng)
+        self._headend = Headend(self._meter_park)
         self._mdm = MDM(self._headend)
         self._analytics = AnalyticsEngine(self._headend)
-        self._delivery_manager = DeliveryManager(rng)
+        self._comm_network = CommNetwork(rng)
+        self._delivery_manager = DeliveryManager(self._comm_network, rng)
         self._event_log = EventLog(maxlen=200)
 
     def initialize(self) -> None:
@@ -147,6 +151,39 @@ class SimulatorEngine:
     ) -> dict:
         return self._mdm.get_billing_determinants(meter_mrid, start, end)
 
+    # --- On-demand reading access ---
+
+    def get_on_demand_readings(
+        self,
+        meter_mrid: str,
+        start: datetime | None = None,
+        end: datetime | None = None,
+        reading_type_mrid: str | None = None,
+        validated_only: bool = False,
+    ) -> list[MeterReading]:
+        """Collect fresh on-demand readings through the HES.
+
+        Unlike get_meter_readings() which returns pre-stored startup data,
+        this requests the Headend to collect a fresh reading from the meter
+        through the communication network.
+
+        Args:
+            meter_mrid: Meter to collect from.
+            start: Start of the requested time range.
+            end: End of the requested time range.
+            reading_type_mrid: Optional reading type filter.
+            validated_only: If True, apply VEE processing to the fresh readings.
+
+        Returns:
+            List of freshly generated MeterReading objects.
+        """
+        readings = self._headend.collect_on_demand_reading(
+            meter_mrid, start, end, reading_type_mrid
+        )
+        if validated_only:
+            readings = [self._mdm.apply_vee(r) for r in readings]
+        return readings
+
     # --- Delivery promise access ---
 
     def create_delivery_promise(
@@ -156,7 +193,7 @@ class SimulatorEngine:
         return self._delivery_manager.create_promise(
             request=request,
             meters=self.get_meters(),
-            get_readings_fn=self.get_meter_readings,
+            get_readings_fn=self.get_on_demand_readings,
         )
 
     def get_delivery_promise(self, promise_id: str) -> DeliveryPromise | None:

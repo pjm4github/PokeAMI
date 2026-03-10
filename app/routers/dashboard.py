@@ -56,7 +56,7 @@ DASHBOARD_HTML = """\
     overflow: auto; padding: 20px;
     display: flex; align-items: center; justify-content: center;
   }
-  svg.pipeline { width: 100%; max-width: 1100px; height: auto; }
+  svg.pipeline { width: 100%; max-width: 1200px; height: auto; }
   svg.pipeline text { fill: var(--text); font-family: inherit; }
   svg.pipeline .node-rect {
     fill: var(--panel); stroke: var(--border); stroke-width: 1.5; rx: 8;
@@ -238,7 +238,7 @@ DASHBOARD_HTML = """\
   </div>
   <div class="results-body" id="resultsBody"></div>
 </div>
-<svg class="pipeline" viewBox="0 0 1100 320" xmlns="http://www.w3.org/2000/svg">
+<svg class="pipeline" viewBox="0 0 1200 320" xmlns="http://www.w3.org/2000/svg">
   <defs>
     <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
       <polygon points="0 0, 8 3, 0 6" fill="#888"/>
@@ -250,16 +250,17 @@ DASHBOARD_HTML = """\
   <path class="arrow" d="M 330 105 L 365 105"/>
   <path class="arrow" d="M 495 105 L 530 105"/>
   <path class="arrow" d="M 660 105 L 695 105"/>
-  <!-- MDM branches to Analytics below -->
-  <path class="arrow" d="M 760 140 L 760 170"/>
   <path class="arrow" d="M 825 105 L 860 105"/>
+  <!-- MDM branches to Analytics below -->
+  <path class="arrow" d="M 925 140 L 925 170"/>
   <path class="arrow" d="M 990 105 L 1025 105"/>
+  <path class="arrow" d="M 1155 105 L 1170 105"/>
 
   <!-- Node: MeterPark -->
   <rect class="node-rect" x="30" y="50" width="135" height="110"/>
   <circle class="dot" id="dot-meter_park" cx="55" cy="70" r="6"/>
   <text class="node-label" x="97" y="92">MeterPark</text>
-  <text class="node-sub" x="97" y="108">Fleet generation</text>
+  <text class="node-sub" x="97" y="108">Smart Meters</text>
   <foreignObject x="38" y="120" width="120" height="30">
     <div xmlns="http://www.w3.org/1999/xhtml" style="display:flex;justify-content:center;gap:4px">
       <button class="svg-btn stop" onclick="stopComponent('meter_park')">Stop</button>
@@ -271,7 +272,7 @@ DASHBOARD_HTML = """\
   <rect class="node-rect" x="200" y="50" width="130" height="110"/>
   <circle class="dot" id="dot-data_generator" cx="225" cy="70" r="6"/>
   <text class="node-label" x="265" y="92">DataGen</text>
-  <text class="node-sub" x="265" y="108">Time-series</text>
+  <text class="node-sub" x="265" y="108">ReadingSource</text>
   <foreignObject x="208" y="120" width="115" height="30">
     <div xmlns="http://www.w3.org/1999/xhtml" style="display:flex;justify-content:center;gap:4px">
       <button class="svg-btn stop" onclick="stopComponent('data_generator')">Stop</button>
@@ -279,12 +280,24 @@ DASHBOARD_HTML = """\
     </div>
   </foreignObject>
 
-  <!-- Node: Headend -->
+  <!-- Node: CommNetwork -->
   <rect class="node-rect" x="365" y="50" width="130" height="110"/>
-  <circle class="dot" id="dot-headend" cx="390" cy="70" r="6"/>
-  <text class="node-label" x="430" y="92">Headend</text>
-  <text class="node-sub" x="430" y="108">Gridstream HES</text>
+  <circle class="dot" id="dot-comm_network" cx="390" cy="70" r="6"/>
+  <text class="node-label" x="430" y="92">CommNet</text>
+  <text class="node-sub" x="430" y="108">RF/PLC/LTE</text>
   <foreignObject x="373" y="120" width="115" height="30">
+    <div xmlns="http://www.w3.org/1999/xhtml" style="display:flex;justify-content:center;gap:4px">
+      <button class="svg-btn stop" onclick="stopComponent('comm_network')">Stop</button>
+      <button class="svg-btn start" onclick="startComponent('comm_network')">Start</button>
+    </div>
+  </foreignObject>
+
+  <!-- Node: Headend -->
+  <rect class="node-rect" x="530" y="50" width="130" height="110"/>
+  <circle class="dot" id="dot-headend" cx="555" cy="70" r="6"/>
+  <text class="node-label" x="595" y="92">Headend</text>
+  <text class="node-sub" x="595" y="108">Gridstream HES</text>
+  <foreignObject x="538" y="120" width="115" height="30">
     <div xmlns="http://www.w3.org/1999/xhtml" style="display:flex;justify-content:center;gap:4px">
       <button class="svg-btn stop" onclick="stopComponent('headend')">Stop</button>
       <button class="svg-btn start" onclick="startComponent('headend')">Start</button>
@@ -292,11 +305,11 @@ DASHBOARD_HTML = """\
   </foreignObject>
 
   <!-- Node: MDM -->
-  <rect class="node-rect" x="530" y="50" width="130" height="110"/>
-  <circle class="dot" id="dot-mdm" cx="555" cy="70" r="6"/>
-  <text class="node-label" x="595" y="92">MDM</text>
-  <text class="node-sub" x="595" y="108">VEE pipeline</text>
-  <foreignObject x="538" y="120" width="115" height="30">
+  <rect class="node-rect" x="695" y="50" width="130" height="110"/>
+  <circle class="dot" id="dot-mdm" cx="720" cy="70" r="6"/>
+  <text class="node-label" x="760" y="92">MDM</text>
+  <text class="node-sub" x="760" y="108">VEE pipeline</text>
+  <foreignObject x="703" y="120" width="115" height="30">
     <div xmlns="http://www.w3.org/1999/xhtml" style="display:flex;justify-content:center;gap:4px">
       <button class="svg-btn stop" onclick="stopComponent('mdm')">Stop</button>
       <button class="svg-btn start" onclick="startComponent('mdm')">Start</button>
@@ -304,11 +317,11 @@ DASHBOARD_HTML = """\
   </foreignObject>
 
   <!-- Node: Analytics -->
-  <rect class="node-rect" x="695" y="170" width="130" height="100"/>
-  <circle class="dot" id="dot-analytics" cx="720" cy="190" r="6"/>
-  <text class="node-label" x="760" y="212">Analytics</text>
-  <text class="node-sub" x="760" y="228">Gridstream</text>
-  <foreignObject x="703" y="240" width="115" height="30">
+  <rect class="node-rect" x="860" y="170" width="130" height="100"/>
+  <circle class="dot" id="dot-analytics" cx="885" cy="190" r="6"/>
+  <text class="node-label" x="925" y="212">Analytics</text>
+  <text class="node-sub" x="925" y="228">Gridstream</text>
+  <foreignObject x="868" y="240" width="115" height="30">
     <div xmlns="http://www.w3.org/1999/xhtml" style="display:flex;justify-content:center;gap:4px">
       <button class="svg-btn stop" onclick="stopComponent('analytics')">Stop</button>
       <button class="svg-btn start" onclick="startComponent('analytics')">Start</button>
@@ -316,11 +329,11 @@ DASHBOARD_HTML = """\
   </foreignObject>
 
   <!-- Node: DeliveryManager -->
-  <rect class="node-rect" x="695" y="50" width="130" height="110"/>
-  <circle class="dot" id="dot-delivery_manager" cx="720" cy="70" r="6"/>
-  <text class="node-label" x="760" y="92">Delivery</text>
-  <text class="node-sub" x="760" y="108">Promise Mgr</text>
-  <foreignObject x="703" y="120" width="115" height="30">
+  <rect class="node-rect" x="860" y="50" width="130" height="110"/>
+  <circle class="dot" id="dot-delivery_manager" cx="885" cy="70" r="6"/>
+  <text class="node-label" x="925" y="92">Delivery</text>
+  <text class="node-sub" x="925" y="108">Promise Mgr</text>
+  <foreignObject x="868" y="120" width="115" height="30">
     <div xmlns="http://www.w3.org/1999/xhtml" style="display:flex;justify-content:center;gap:4px">
       <button class="svg-btn stop" onclick="stopComponent('delivery_manager')">Stop</button>
       <button class="svg-btn start" onclick="startComponent('delivery_manager')">Start</button>
@@ -328,10 +341,10 @@ DASHBOARD_HTML = """\
   </foreignObject>
 
   <!-- Node: REST API (no controls - always on) -->
-  <rect class="node-rect" x="860" y="50" width="130" height="110" style="stroke:var(--cyan)"/>
-  <circle class="dot on" cx="885" cy="70" r="6"/>
-  <text class="node-label" x="925" y="92">REST API</text>
-  <text class="node-sub" x="925" y="108">FastAPI</text>
+  <rect class="node-rect" x="1025" y="50" width="130" height="110" style="stroke:var(--cyan)"/>
+  <circle class="dot on" cx="1050" cy="70" r="6"/>
+  <text class="node-label" x="1090" y="92">REST API</text>
+  <text class="node-sub" x="1090" y="108">FastAPI</text>
 
 </svg>
 </div>

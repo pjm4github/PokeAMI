@@ -1,14 +1,8 @@
 """Delivery Manager - simulates asynchronous on-demand meter read collection.
 
-Simulates the slow/unreliable communication between the HES and field meters
-by assigning each meter a simulated collection time based on its communication
-type and operational status.
-
-Communication latency model:
-    - Cellular LTE: 3-8s (fastest, most reliable, 5% failure rate)
-    - RF Mesh: 8-20s (medium, multi-hop delays, 10% failure rate)
-    - PLC: 12-25s (slowest, noisy channel, 15% failure rate)
-    - COMM_FAILURE meters: 80% failure rate regardless of comm type
+Manages delivery promises for on-demand meter reads, using the CommNetwork
+to simulate communication latency and failures between the HES and field
+meters.
 
 References:
     - Landis+Gyr Gridstream HES on-demand read workflow
@@ -26,42 +20,12 @@ from app.models.delivery_promise import (
     MeterDeliveryResult,
 )
 from app.models.enums import (
-    CommunicationType,
     DeliveryPromiseStatus,
     MeterDeliveryStatus,
-    MeterStatus,
 )
 from app.models.meter import Meter
 from app.models.reading import MeterReading
-
-# Latency ranges per comm type (seconds)
-COMM_LATENCY: dict[CommunicationType, tuple[float, float]] = {
-    CommunicationType.CELLULAR_LTE: (3.0, 8.0),
-    CommunicationType.RF_MESH: (8.0, 20.0),
-    CommunicationType.PLC: (12.0, 25.0),
-}
-
-# Base failure rates per comm type
-COMM_FAILURE_RATE: dict[CommunicationType, float] = {
-    CommunicationType.CELLULAR_LTE: 0.05,
-    CommunicationType.RF_MESH: 0.10,
-    CommunicationType.PLC: 0.15,
-}
-
-# Failure rate override for meters in COMM_FAILURE status
-COMM_FAILURE_METER_RATE = 0.80
-
-# Randomly selected failure reasons
-FAILURE_REASONS = [
-    "Communication timeout — no response from meter after 3 retries",
-    "RF Mesh path unavailable — no route to meter",
-    "PLC signal degradation — CRC errors exceeded threshold",
-    "Meter in maintenance mode — remote read disabled",
-    "Cellular network unreachable — SIM registration failed",
-]
-
-# Buffer added to estimated delivery beyond the slowest meter
-DELIVERY_BUFFER_SECONDS = 5.0
+from app.simulator.comm_network import CommNetwork, DELIVERY_BUFFER_SECONDS
 
 
 class DeliveryManager:
@@ -76,7 +40,8 @@ class DeliveryManager:
         - Landis+Gyr Command Center async job status model
     """
 
-    def __init__(self, rng: random.Random | None = None):
+    def __init__(self, comm_network: CommNetwork, rng: random.Random | None = None):
+        self._comm_network = comm_network
         self._rng = rng or random.Random()
         # promise_id -> DeliveryPromise (latest snapshot)
         self._promises: dict[str, DeliveryPromise] = {}
@@ -152,18 +117,9 @@ class DeliveryManager:
                 )
                 continue
 
-            comm_type = meter.comm_module.comm_type
-            lo, hi = COMM_LATENCY.get(comm_type, (8.0, 20.0))
-            latency = self._rng.uniform(lo, hi)
-
-            # Determine failure
-            if meter.status == MeterStatus.COMM_FAILURE:
-                will_fail = self._rng.random() < COMM_FAILURE_METER_RATE
-            else:
-                base_rate = COMM_FAILURE_RATE.get(comm_type, 0.10)
-                will_fail = self._rng.random() < base_rate
-
-            failure_reason = self._rng.choice(FAILURE_REASONS) if will_fail else None
+            latency, will_fail, failure_reason = (
+                self._comm_network.simulate_transmission(meter)
+            )
 
             collection_time = now + timedelta(seconds=latency)
             timing[mrid] = {

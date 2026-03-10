@@ -187,6 +187,61 @@ class DataGenerator:
 
         return readings
 
+    def generate_on_demand_readings(
+        self,
+        meter: Meter,
+        is_solar: bool,
+        start: datetime,
+        end: datetime,
+        interval_minutes: int = 15,
+        reading_type_mrid: str | None = None,
+    ) -> list[MeterReading]:
+        """Generate fresh readings for an on-demand meter read request.
+
+        Unlike generate_meter_readings() which computes start/end from data_days,
+        this method accepts explicit time boundaries — used when the HES collects
+        a fresh reading from the meter through the communication network.
+
+        Args:
+            meter: The meter producing the reading.
+            is_solar: Whether this meter has reverse energy (solar).
+            start: Start of the requested time range.
+            end: End of the requested time range.
+            interval_minutes: Interval between readings in minutes.
+            reading_type_mrid: If given, generate only this reading type;
+                otherwise generate all applicable types.
+
+        Returns:
+            List of MeterReading objects (one per reading type).
+        """
+        if not self._enabled:
+            return []
+
+        time_period = DateTimeInterval(start=start, end=end)
+
+        if reading_type_mrid:
+            rt_mrids = [reading_type_mrid]
+        else:
+            rt_mrids = self.get_reading_type_mrids_for_meter(meter, is_solar)
+
+        readings: list[MeterReading] = []
+        for rt_mrid in rt_mrids:
+            interval_block = self._generate_interval_block(
+                meter, rt_mrid, is_solar, start, end, interval_minutes
+            )
+            meter_reading = MeterReading(
+                mrid=generate_mrid(),
+                meter_mrid=meter.mrid,
+                usage_point_mrid=meter.usage_point_mrid,
+                reading_type_mrid=rt_mrid,
+                time_period=time_period,
+                interval_blocks=[interval_block],
+                is_validated=False,
+            )
+            readings.append(meter_reading)
+
+        return readings
+
     def _generate_interval_block(
         self,
         meter: Meter,

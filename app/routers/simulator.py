@@ -17,6 +17,7 @@ COMPONENT_MAP = {
     "mdm": "_mdm",
     "analytics": "_analytics",
     "delivery_manager": "_delivery_manager",
+    "comm_network": "_comm_network",
 }
 
 

@@ -3,6 +3,9 @@
 Generates a realistic distribution of Landis+Gyr meters with associated
 usage points, communication modules, and realistic configuration.
 
+Each meter is wrapped in a SmartMeter that delegates data generation to a
+pluggable ReadingSource (DataGenerator today, LoadModel in the future).
+
 References:
     - Landis+Gyr E350 Brochure (publicly available) - Residential basic meter
     - Landis+Gyr E360 LTE Technical Data (publicly available) - Residential advanced
@@ -23,7 +26,10 @@ from app.models.enums import (
     PhaseCode,
 )
 from app.models.meter import CommModule, Meter
+from app.models.reading import MeterReading, ReadingType
 from app.models.usage_point import UsagePoint
+from app.simulator.reading_source import ReadingSource
+from app.simulator.smart_meter import SmartMeter
 
 # Meter type distribution (weighted)
 # Ref: Typical utility fleet composition per L+G deployment guides
@@ -100,16 +106,25 @@ COMM_FIRMWARE_VERSIONS = {
 
 
 class MeterPark:
-    """Manages a fleet of simulated meters and their associated usage points.
+    """Manages a fleet of emulated smart meters and their associated usage points.
+
+    Each meter is wrapped in a SmartMeter that delegates reading generation
+    to the supplied ReadingSource (DataGenerator, future LoadModel, etc.).
 
     References:
         - Typical utility AMI deployment fleet composition
         - Landis+Gyr product documentation for meter specifications
     """
 
-    def __init__(self, meter_count: int, rng: random.Random | None = None):
+    def __init__(
+        self,
+        meter_count: int,
+        reading_source: ReadingSource,
+        rng: random.Random | None = None,
+    ):
+        self._reading_source = reading_source
         self._rng = rng or random.Random()
-        self._meters: dict[str, Meter] = {}
+        self._smart_meters: dict[str, SmartMeter] = {}
         self._usage_points: dict[str, UsagePoint] = {}
         self._enabled: bool = True
         self._generate_fleet(meter_count)
@@ -131,7 +146,9 @@ class MeterPark:
         for i in range(count):
             meter_type = self._rng.choices(types, weights=weights, k=1)[0]
             meter, usage_point = self._create_meter(i, meter_type)
-            self._meters[meter.mrid] = meter
+            is_solar = hash(meter.serial_number) % 5 == 0
+            smart_meter = SmartMeter(meter, is_solar, self._reading_source)
+            self._smart_meters[meter.mrid] = smart_meter
             self._usage_points[usage_point.mrid] = usage_point
 
     def _create_meter(self, index: int, meter_type: MeterType) -> tuple[Meter, UsagePoint]:
@@ -220,10 +237,17 @@ class MeterPark:
 
     @property
     def meters(self) -> dict[str, Meter]:
-        """All meters keyed by mRID."""
+        """All meters keyed by mRID (backward-compatible view)."""
         if not self._enabled:
             return {}
-        return self._meters
+        return {mrid: sm.meter for mrid, sm in self._smart_meters.items()}
+
+    @property
+    def smart_meters(self) -> dict[str, SmartMeter]:
+        """All SmartMeter instances keyed by mRID."""
+        if not self._enabled:
+            return {}
+        return self._smart_meters
 
     @property
     def usage_points(self) -> dict[str, UsagePoint]:
@@ -234,7 +258,8 @@ class MeterPark:
 
     def get_meter(self, mrid: str) -> Meter | None:
         """Get a meter by mRID."""
-        return self._meters.get(mrid)
+        sm = self._smart_meters.get(mrid)
+        return sm.meter if sm else None
 
     def get_usage_point(self, mrid: str) -> UsagePoint | None:
         """Get a usage point by mRID."""
@@ -245,12 +270,46 @@ class MeterPark:
         up = self._usage_points.get(usage_point_mrid)
         if not up:
             return []
-        return [self._meters[m] for m in up.meter_mrids if m in self._meters]
+        return [
+            self._smart_meters[m].meter
+            for m in up.meter_mrids
+            if m in self._smart_meters
+        ]
 
     def is_solar_meter(self, meter: Meter) -> bool:
         """Determine if a meter has solar/reverse energy generation.
 
         ~20% of residential meters are assigned solar capability.
         """
-        # Use a deterministic check based on the meter's serial number hash
+        sm = self._smart_meters.get(meter.mrid)
+        if sm:
+            return sm.is_solar
+        # Fallback for meters not in our fleet
         return hash(meter.serial_number) % 5 == 0
+
+    def read_meter(
+        self, mrid: str, data_days: int, interval_minutes: int
+    ) -> list[MeterReading]:
+        """Ask a SmartMeter to produce historical readings."""
+        sm = self._smart_meters.get(mrid)
+        if sm is None:
+            return []
+        return sm.read(data_days, interval_minutes)
+
+    def read_meter_on_demand(
+        self,
+        mrid: str,
+        start: datetime,
+        end: datetime,
+        interval_minutes: int = 15,
+        reading_type_mrid: str | None = None,
+    ) -> list[MeterReading]:
+        """Ask a SmartMeter to produce a fresh on-demand reading."""
+        sm = self._smart_meters.get(mrid)
+        if sm is None:
+            return []
+        return sm.read_on_demand(start, end, interval_minutes, reading_type_mrid)
+
+    def get_reading_types(self) -> dict[str, ReadingType]:
+        """Delegate to the reading source for the reading type catalog."""
+        return self._reading_source.get_reading_types()

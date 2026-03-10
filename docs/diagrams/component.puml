@@ -15,14 +15,23 @@ package "API Layer" {
     [Auth Middleware] as Auth
 }
 
-package "Simulator Layer" {
+package "Simulation Layer" {
     [SimulatorEngine] as Engine
+    [Data Generator] as DG
+    [LoadModel (stub)] as LM
+}
+
+package "Emulated Devices" {
+    [Meter Park] as MP
+    [SmartMeter] as SM
+}
+
+package "Emulated Infrastructure" {
     [Headend (HES)] as HES
     [MDM (VEE)] as MDM
     [Analytics Engine] as AE
     [Delivery Manager] as DM
-    [Meter Park] as MP
-    [Data Generator] as DG
+    [Comm Network] as CN
 }
 
 API --> Auth : validates
@@ -41,13 +50,17 @@ Engine --> MDM : validated data
 Engine --> AE : analytics
 Engine --> DM : on-demand reads
 
+DG -down-> MP : <<ReadingSource>>
+LM .down.> MP : <<ReadingSource>> (future)
+MP --> SM : wraps meters
+
+SM -right-> CN : comm path
+CN -right-> HES : data transport
 HES --> MP : meter inventory
-HES --> DG : data generation
 MDM --> HES : raw readings
 AE --> HES : raw readings
 DM --> HES : on-demand collection
+DM --> CN : comm simulation
 DM --> MDM : validated reads
-
-MP --> DG : meter specs
 
 @enduml
