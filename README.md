@@ -8,6 +8,14 @@ A CIM-compatible OpenAPI interface to simulated Landis+Gyr Advanced Metering Inf
 
 The implementation simulates three Landis+Gyr components backed by realistic generated data, exposed through a FastAPI OpenAPI 3.1 interface using IEC 61968-9 CIM data models.
 
+**Implementation specifications** for vendors and AI agents:
+
+| Document | Format | Description |
+|----------|--------|-------------|
+| [OpenAPI & MCP Spec](docs/OPENAPI_MCP_SPEC.md) | Markdown | Vendor-facing spec: REST API design, delivery promise pattern, MCP alternative with coupling analysis |
+| [OpenAPI & MCP Spec](docs/OPENAPI_MCP_SPEC.docx) | Word | Same spec as a Word document with rendered Mermaid diagrams |
+| [Agent Implementation Spec](docs/AMI_OPENAPI_AGENT_SPEC.md) | Markdown | Machine-readable spec for AI coding agents to auto-implement the API layer |
+
 Full architecture and component diagrams are available as PlantUML sources in [`docs/diagrams/`](docs/diagrams/):
 
 | Diagram | Source | Description |
@@ -176,7 +184,8 @@ All endpoints (except health, simulator status, and dashboard) require the `X-AP
 | Endpoint | Method | Description |
 |----------|--------|-------------|
 | `/api/v1/delivery-promises` | POST | Create async on-demand read request (body: `meter_mrids`, `start`, `end`, `reading_type_mrid`, `validated_only`) |
-| `/api/v1/delivery-promises/{promise_id}` | GET | Poll promise status (pending → inProgress → completed / partial / failed) |
+| `/api/v1/delivery-promises/{promise_id}` | GET | Collect results at promised delivery time |
+| `/api/v1/delivery-promises/{promise_id}` | DELETE | Cancel an expired or unneeded promise (optional) |
 | `/api/v1/delivery-promises` | GET | List all delivery promises (paginated) |
 
 ### Simulator Control
@@ -286,7 +295,7 @@ curl -X POST -H "X-API-Key: dev-api-key-change-me" \
   -d '{"meter_mrids": ["meter-001"], "start": "2025-01-01T00:00:00Z", "end": "2025-01-02T00:00:00Z"}' \
   http://localhost:8000/api/v1/delivery-promises
 
-# Poll the delivery promise
+# Collect results at estimated_delivery time
 curl -H "X-API-Key: dev-api-key-change-me" \
   http://localhost:8000/api/v1/delivery-promises/{promise_id}
 ```
@@ -405,6 +414,10 @@ PokeAMI/
 │   ├── render_diagrams.py     # PlantUML diagram renderer
 │   └── TRAINING_VIDEO_SCRIPT.md # Training video walkthrough
 └── docs/
+    ├── OPENAPI_MCP_SPEC.md    # Vendor-facing OpenAPI/MCP specification
+    ├── OPENAPI_MCP_SPEC.docx  # Word version with rendered diagrams
+    ├── AMI_OPENAPI_AGENT_SPEC.md # Machine-readable agent implementation spec
+    ├── build_docx.py          # Script to rebuild the Word document
     └── diagrams/              # PlantUML architecture diagrams
 ```
 
